@@ -1,6 +1,8 @@
 import io from 'socket.io-client';
 import { change_CH_State_Everything_AC, change_Players_State_AC, set_currPlayer_socketID_AC, update_currPlayer_AC, store } from './store';
 import { CONNECT } from '../js/constants';
+import { populateBoard } from '../js/utils';
+import { change_board } from './store'
 
 let socket = {};//this can't be in store because ... can't serialize circular references (look into this later)
 
@@ -41,8 +43,28 @@ export const addSocketListenerCreator = (eventName, socketListener) => {//so you
 
 export const tempUpdStoreListener = function(chessState){//DELETE THIS WHEN YOU HAVE FIGURED OUT A LESS HACKY WAY TO DO THIS
   console.log('Server sent updated CHESS state.. about to change local store!')//REFACTOR.. TAKE THESE OUT AND JUST MAKE ANON FUNCTION
+
+  // let blah= ()=>{ //WHY didn't this work???
+  //   console.log('shouldnt this have updated? ',this.getState().chessState)
+  //   let newBoard= populateBoard(this.getState().chessState);
+  //   console.log('newboard ',newBoard)
+  //   this.dispatch(change_board(newBoard));
+  // }
+
   let change_CH_State_Everything_AO = change_CH_State_Everything_AC(chessState);//UPDATE: ACTUALLY STILL CAN'T USE STORE OUTSIDE THIS CONTEXT!!!!  STILL NEED BIND STORE... //HAL SAID: STORE IS AVAILABLE, NO NEED TO BIND STORE...
-  this.dispatch(change_CH_State_Everything_AO);//BIND ACTION CREATORS... LOOK IT UP
+  this.dispatch(change_CH_State_Everything_AO, function(){
+    let chessState= Object.assign({},this.getState().chessState);
+    // console.log('shouldnt this have updated? ', chessState)
+
+      let newBoard= populateBoard(chessState); //WHY DOES RUNNING THIS CHANGING STATE TO EARLIER?? (IF 2 LINE EARLIER I DIDNT DO OBJECT.ASSIGN... HOW DOES RUNING IT CHANGE STATE BACK??)
+      // console.log('newboard ',newBoard)
+      this.dispatch(change_board(newBoard));
+  }.bind(this)());//BIND ACTION CREATORS... LOOK IT UP
+
+
+
+  // let newBoard= populateBoard(this.getState().chessState);//WHY didn't this work EITHER?
+  // this.dispatch(change_board(newBoard));
 }.bind(store)//This is the only way I can get this to work... socketListener needs access to dispatch
 
 export const tempUpdPlayersListener = function(playersState){//DELETE THIS WHEN YOU HAVE FIGURED OUT A LESS HACKY WAY TO DO THIS

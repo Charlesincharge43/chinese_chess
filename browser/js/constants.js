@@ -20,6 +20,7 @@ const CHANGE_CH_STATE_EVERYTHING='CHANGE_CH_STATE_EVERYTHING';
 const CHANGE_PLAYERS_STATE='CHANGE_PLAYERS_STATE';
 const SET_CURR_ID='SET_CURR_ID';
 
+// Piece type and in play
 
 module.exports = {
   CONNECT,

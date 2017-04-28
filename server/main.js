@@ -36,17 +36,17 @@ io.on('connection', function (socket) {
   console.log(socket.id, 'connected');
 
   function updateClientsChessState(){
-    console.log('emitting chess state to clients ');
+    // console.log('emitting chess state to clients ');
     socket.emit(UPDATE_CHESS_STORE, store.getState().chessState)
   }
 
   function updateClientsPlayersState(){
-    console.log('emitting player state to clients ');
+    // console.log('emitting player state to clients ');
     socket.emit(UPDATE_PLAYERS_STORE, store.getState().playersState)
   }
 
   function updTeamsinPlayersState(){
-    console.log('updating Teams');
+    // console.log('updating Teams');
     let playersStateArr= store.getState().playersState;
     let player0_Obj= Object.assign({},playersStateArr[0]);
     let player1_Obj= Object.assign({},playersStateArr[1]);
@@ -61,7 +61,7 @@ io.on('connection', function (socket) {
   store.subscribe(() => {
     // console.log('server store changed!!!');
     // console.log('new player store is :',store.getState().playersState)
-    console.log('cannon 1: ',store.getState().chessState.red.CAN1)
+    // console.log('cannon 1: ',store.getState().chessState.red.CAN1)
     updateClientsChessState();
     updateClientsPlayersState();
   })
@@ -70,7 +70,7 @@ io.on('connection', function (socket) {
   //First emit to update chess store at the beginning, works perfect!  NOTE.. you want to make this BROADCAST EVENTUALLY!!!!!
 
   socket.on(NEW_PLAYER, function(playerName){
-    console.log('new player.. adding');
+    // console.log('new player.. adding');
     let newPlayerObj = {socketID: socket.id, name: playerName, team: null };
     let add_Player_AO= add_Player_AC(newPlayerObj);
     store.dispatch(add_Player_AO);
@@ -79,6 +79,7 @@ io.on('connection', function (socket) {
 
   socket.on(UPDATE_PIECES, function(pieceChangeObj){
     console.log('recieved updated chess state from client');
+    console.log(pieceChangeObj)
     let change_CH_State_AO = change_CH_State_AC(pieceChangeObj);
     store.dispatch(change_CH_State_AO);
   })

@@ -44,7 +44,6 @@ class Canvas extends React.Component {
         //so you still have to do your own subscribe
         console.log('local store changed... (re)drawing !!');
         draw(this.state.canvas);
-
       })
 
     }
@@ -56,15 +55,19 @@ class Canvas extends React.Component {
     }
 
     render() {
+      let team=this.props.storeState.currentPlayerState.team;
+      let currentTurn=this.props.storeState.chessState.currentTurn;
+      let playersState=this.props.storeState.playersState;
+
       return(
         <div>
-          {(this.state.team === 'red') && <h1 style={{color: 'red'}} className='center'>You are the red player!</h1>}
-          {(this.state.team === 'black') && <h1 style={{color: 'black'}} className='center'>You are the black player!</h1>}
-          {(this.state.team === null) && <h1 style={{color: 'grey'}} className='center'>You are spectating!</h1>}
-          <h2 className='center'>Current Turn: {this.state.currentTurn} </h2>
+          {(team === 'red') && <h1 style={{color: 'red'}} className='center'>You are the red player!</h1>}
+          {(team === 'black') && <h1 style={{color: 'black'}} className='center'>You are the black player!</h1>}
+          {(team === null) && <h1 style={{color: 'grey'}} className='center'>You are spectating!</h1>}
+          <h2 className='center'>Current Turn: {currentTurn} </h2>
           <div className='inline-block'>
             <h1 style={{color: 'grey'}}> Players/Spectators</h1>
-            {this.state.playersState.map(playerObj=>{
+            {playersState.map(playerObj=>{
               if(playerObj.team==='red') return(<h4 style={{color: playerObj.team}}>Red Player: {playerObj.name}</h4>)
               else if(playerObj.team==='black') return(<h4 style={{color: playerObj.team}}>Black Player: {playerObj.name}</h4>)
               else return (<h4 style={{color: 'grey'}}>Spectating: {playerObj.name}</h4>)

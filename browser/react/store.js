@@ -22,7 +22,12 @@ export const update_currPlayer_AC= (playerObj)=>{
 	return {type: UPDATE_CURRENT_PLAYER, playerObj: playerObj}
 }
 
+const CHANGE_BOARD = 'CHANGE_BOARD';
+export const change_board= (board)=>{
+	return {type: CHANGE_BOARD, board: board}
+}
 
+// later just have all these constants in constants
 const PIECE_GENERAL = 0;
 const PIECE_GUARD = 1;
 const PIECE_CAVALIER = 2;
@@ -36,6 +41,39 @@ const initialState = {
 	"black":{},
 	"red":{},
 	"currentTurn":null,
+}
+
+// const initialBoard= [
+// 	[{},{},{},{},{},{},{},{},{},],
+// 	[{},{},{},{},{},{},{},{},{},],
+// 	[{},{},{},{},{},{},{},{},{},],
+// 	[{},{},{},{},{},{},{},{},{},],
+// 	[{},{},{},{},{},{},{},{},{},],
+// 	[{},{},{},{},{},{},{},{},{},],
+// 	[{},{},{},{},{},{},{},{},{},],
+// 	[{},{},{},{},{},{},{},{},{},],
+// 	[{},{},{},{},{},{},{},{},{},],
+// 	[{},{},{},{},{},{},{},{},{},],
+// ]
+
+const initialBoard = [[{"team":"black","key":"CH1"},{"team":"black","key":"CAV1"},{"team":"black","key":"ELE1"},{"team":"black","key":"GU1"},{"team":"black","key":"GEN"},{"team":"black","key":"GU2"},{"team":"black","key":"ELE2"},{"team":"black","key":"CAV2"},{"team":"black","key":"CH2"}],[{},{},{},{},{},{},{},{},{}],[{},{"team":"black","key":"CAN1"},{},{},{},{},{},{"team":"black","key":"CAN2"},{}],[{"team":"black","key":"SOL1"},{},{"team":"black","key":"SOL2"},{},{"team":"black","key":"SOL3"},{},{"team":"black","key":"SOL4"},{},{"team":"black","key":"SOL5"}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{"team":"red","key":"SOL1"},{},{"team":"red","key":"SOL2"},{},{"team":"red","key":"SOL3"},{},{"team":"red","key":"SOL4"},{},{"team":"red","key":"SOL5"}],[{},{"team":"red","key":"CAN1"},{},{},{},{},{},{"team":"red","key":"CAN2"},{}],[{},{},{},{},{},{},{},{},{}],[{"team":"red","key":"CH1"},{"team":"red","key":"CAV1"},{"team":"red","key":"ELE1"},{"team":"red","key":"GU1"},{"team":"red","key":"GEN"},{"team":"red","key":"GU2"},{"team":"red","key":"ELE2"},{"team":"red","key":"CAV2"},{"team":"red","key":"CH2"}]]
+
+export const boardStateReducer = function (prevState = initialBoard, action){
+	let newState=initialBoard.slice(0);//copy outer array
+	for(let yArr of newState){
+		yArr= yArr.slice(0);//copy inner array
+		for(let positionObj of yArr){
+			positionObj= Object.assign({},positionObj);//copy objects inside the array
+		}
+	}
+	switch(action.type){
+		case CHANGE_BOARD:
+			newState= action.board;
+			return newState;
+
+		default:
+			return prevState;
+	}
 }
 
 export const chessStateReducer = function (prevState = initialState, action){
@@ -52,22 +90,10 @@ export const chessStateReducer = function (prevState = initialState, action){
   //the keys may still reference the same objects.. so changing those would change the original outer obj too
   //see picture on your phone
 
-	switch(action.type){//don't need the 2 following.. since client will just change everything
-		// case CHANGE_CH_STATE:
-    //   let team= action.pieceChangeObj.team;
-    //   let key= action.pieceChangeObj.key;
-    //   let val= action.pieceChangeObj.pieceVal;
-		// 	newState[team][key]=val;
-		// 	return newState;
-		//
-		// case CHANGE_CH_TURN:
-		// 	newState.currentTurn= action.currentTurn;
-		// 	return newState;
-
+	switch(action.type){
 		case CHANGE_CH_STATE_EVERYTHING:
-			newState= Object.assign({},action.entireChessStateObj);//NOTE.. entireChessStateObj comes from the server, and is NOT deep cloned!!!
-			//WILL THIS BE A PROBLEM?  I really really hope not... (i mean it's from the server right...?)
-			//should i deep clone it anyway
+			newState= action.entireChessStateObj;//this is NOT MAKING CLONES OF ENTIRECHESSSTATE... ONLY DO THIS IF CHESSSTATE IS ALREADY
+			//A CLONE (OR A JSON OBJECT SENT FROM SERVER)
 			return newState;
 
 		default:
@@ -79,21 +105,6 @@ const playersStateReducer = function(prevState = [], action){
 	let newState = prevState.slice(0);
 
 	switch(action.type){
-		//Client side, so the follow 2 cases are not necessary
-		//
-		// case ADD_PLAYER:
-		// 	newState=newState.concat(action.playerObj);
-		// 	return newState;
-		//
-		// case CHANGE_PLAYER:
-		// 	for(let i=0;i<newState.length;i++){
-		// 		if(newState[i].socketID===action.playerObj.socketID){
-		// 			newState[i]= Object.assign({},action.playerObj);
-		// 			break;
-		// 		}
-		// 	}
-		// 	return newState;
-
 		case CHANGE_PLAYERS_STATE:
 			newState= action.entirePlayersStateObj;//this is NOT MAKING CLONES OF PLAYERSTATE... ONLY DO THIS IF PLAYERSTATE IS ALREADY
 			//A CLONE (OR A JSON OBJECT SENT FROM SERVER)
@@ -127,6 +138,7 @@ let reducers=combineReducers({
   chessState: chessStateReducer,
 	playersState: playersStateReducer,
 	currentPlayerState: currentPlayerStateReducer,
+	boardState: boardStateReducer,//This is the only thing that does not get anything from server (this is recreated every time from chessState - when that changes)
 });
 
 export const store = createStore(reducers,applyMiddleware(createLogger(),thunkMiddleware));

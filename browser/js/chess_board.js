@@ -1,7 +1,10 @@
 import { CONNECT, UPDATE_PIECES, UPDATE_TURN, NEW_PLAYER } from './constants'; //remember you can't import or export client side... need node
 // import initialState from './defaultState'; //NO LONGER USING THIS
 import {store, change_CH_State_AC, change_CH_Key_AC, change_CH_Turn_AC, change_CH_State_Everything_AC, chessStateReducer} from '../react/store';
+import { soldierLegalMoves } from './legalMoves';
 import { socketEmitCreator } from '../react/socket';
+import { UtilObj, getPieceAtCanvXY, snapToVertex, convertStateXY, topLeftCorner } from './utils';
+import LegalMoves from './legalMoves'
 
 var NUMBER_OF_ROWS = 9;
 var NUMBER_OF_COLS = 8;
@@ -12,17 +15,31 @@ var BLOCK_COLOUR_2= '#FFFFFF';//river color
 var BLOCK_COLOUR_3= '#FFDAAA';//palace color
 var STARTING_POINT_X= 50;// X coord for where to start drawing the board (top left corner)
 var STARTING_POINT_Y= 35;// Y coord for where to start drawing the board (top left corner)
+var START_LOCOBJ= {x:STARTING_POINT_X,y:STARTING_POINT_Y}
 var IMAGE_SIZE = 300;//size of image blocks on the original image file (for drawImage..)
 var PIECE_SIZE = 68;//size for the image blocks in the image file to scale down to for actual display
 var SELECT_LINE_WIDTH = 3;
 var HIGHLIGHT_COLOUR = '#FF0000';
 var TEST_COLOUR = '#D2FF94';
+var MOVE_COLOUR = '#0080ff';
+var PATH_COLOUR = '#99ccff';
 var IN_PLAY = true;
 var BLOCK_SIZE;
 
+var PIECE_GENERAL = 0;
+var PIECE_GUARD = 1;
+var PIECE_CAVALIER = 2;
+var PIECE_ELEPHANT = 3;
+var PIECE_CHARIOT = 4;
+var PIECE_CANNON = 5;
+var PIECE_SOLDIER = 6
+
 //MOVE THESE GLOBAL VARIABLES TO THE STORE AS SOON AS YOU GET REDUX WORKING
+var utilObj;
+var legalMoves;
 var selectedKey = null;// CHANGE THIS ASAP... DON'T LIKE  THE IDEA OF CHANGEABLE GLOBAL VARS BEING USED LIKE THIS
-var state={};
+var state={};//this is piece data (if you need to iterate through the pieces use this)
+// var board=[];//this is board data (if you need to iterate through positions, use this)
 var playerTeam=null;
 
 var moveHitBoxesArr=[];//this will populated by moveHitBoxes() in draw()
@@ -51,19 +68,42 @@ export const draw = function(canvas)
         //self explanatory
         loadStatefromStore();
 
+        //make a new util object with these values passed in (so those methods have this data available)
+        utilObj= new UtilObj(START_LOCOBJ, PIECE_SIZE, BLOCK_SIZE, state, moveHitBoxesArr)//this will be empty.  Set after moveHitBoxes().  god this is a mess
+        legalMoves= new LegalMoves(state, {
+          PIECE_GENERAL,
+          PIECE_GUARD,
+          PIECE_CAVALIER,
+          PIECE_ELEPHANT,
+          PIECE_CHARIOT,
+          PIECE_CANNON,
+          PIECE_SOLDIER,
+        });
+
         // Draw the background
         drawBoard();
 
         // defaultPositions();//MYSTERY SOLVED... DEFAULT POSITIONS!!!!  You were running default positions!!!  THATS WHY THINGS WERE REVERTING
 
         moveHitBoxes();//this will change the global variable moveHitBoxesArr
+        utilObj.moveHitBoxesArr=moveHitBoxesArr;
 
         // Draw pieces
         pieces = new Image();// Draw pieces ***** I don't get this part at all :( // I kinda get it now
         pieces.onload = drawPieces;
         pieces.src = '/xiangqi-pieces-sprites.png';//dimensions: width 2100, height, 600
 
-        canvas.addEventListener('click', board_click, false);
+        //ONLY add click event listeners if the player's team matches the current turn team
+
+        if(playerTeam=== state.chessState.currentTurn){
+          canvas.addEventListener('click', board_click, false);
+        }
+        else {
+          //don't know if the line below is necessary.. but it works now.. im not about to remove it (maybe later)
+          // console.log('turn changed, so removing click handlers for team ', playerTeam)
+          canvas.removeEventListener('click', board_click, false);
+        }
+
     }
     else
     {
@@ -73,8 +113,9 @@ export const draw = function(canvas)
 
 function loadStatefromStore(){
   console.log('loading new state (for drawing) from local store');
-  var storeState= store.getState()
-  state = storeState.chessState;
+  var storeState= store.getState();//When the server data is loaded, this is what kicks off the re-rendering
+  // state = storeState.chessState;
+  state = storeState;
   playerTeam = storeState.currentPlayerState.team;
 }
 
@@ -163,7 +204,10 @@ var canvCoord;
 //than NUMBER_OF_ROWS/NUMBER_OF_COLS constants
   for(let row = 0; row<NUMBER_OF_ROWS+1; row++){
     for(let col=0; col<NUMBER_OF_COLS+1; col++){
-      canvCoord= convertStateXY(col,row);
+
+      // canvCoord= convertStateXY({x:col,y:row}, START_LOCOBJ, BLOCK_SIZE);
+      canvCoord= utilObj.convertStateXY({x:col,y:row});
+
       moveHitBoxesArr.push({
         x1: canvCoord.x-(BLOCK_SIZE/2),
         y1: canvCoord.y-(BLOCK_SIZE/2),
@@ -180,33 +224,41 @@ var canvCoord;
   // console.log(moveHitBoxesArr)
 }
 
-function convertStateXY(x,y){//converts 0,0 to 25,25 (or whatever coordinate representing the coordinate on canvas is)
-  let canvX= STARTING_POINT_X+x * BLOCK_SIZE;
-  let canvY= STARTING_POINT_Y+y * BLOCK_SIZE;
-  return {x: canvX, y:canvY};
-}
-
-function convertCanvXY(canvX, canvY){//convert something like 37.33,37.33 to 0,0 (or whatever coordinate representing the x,y coord in state is)
-  let x= (canvX-STARTING_POINT_X)/BLOCK_SIZE;
-  let y= (canvY-STARTING_POINT_Y)/BLOCK_SIZE;
-  return {x,y};
-}
-
-//rename this asap!  this function only returns top left corner for piece hitbox
-function drawPieceStartingPoint(curPiece){//takes in piece Object {piece: __, x:__, y:__, status:__}, outputs object {x:, y:} with converted coord
-  //via convertStateXY represented TOP LEFT CORNER of square with side length PIECE_SIZE
-  let convertedCoord=convertStateXY(curPiece.x,curPiece.y);
-  return {x:convertedCoord.x-(PIECE_SIZE/2), y:convertedCoord.y-(PIECE_SIZE/2)};
-}
-
 function convertToStateCoord(){
 
 }
 
 function drawPieces()
 {
-    drawTeamOfPieces(state.black, true);
-    drawTeamOfPieces(state.red, false);
+    drawTeamOfPieces(state.chessState.black, true);
+    drawTeamOfPieces(state.chessState.red, false);
+    // drawBoardObj(); //FOR DEBUGGING PURPOSES
+}
+
+// function drawBoardObj(){
+//   for(let y=0;y<state.boardState.length;y++){
+//     for(let x=0;x<state.boardState[y].length; x++){
+//       if(Object.keys(state.boardState[y][x]).length !== 0){
+//         let canvCoord= utilObj.convertStateXY({x,y});
+//         ctx.strokeStyle = TEST_COLOUR;
+//         ctx.strokeRect(canvCoord.x-(BLOCK_SIZE/2), canvCoord.y-(BLOCK_SIZE/2), BLOCK_SIZE, BLOCK_SIZE);
+//       }
+//     }
+//   }
+// }
+
+function testDrawSquares(arrLocObj,side, testColor){//take an array of location objects (stateXY not canvXY), and a side length, draw on canvas squares around the locations
+  console.log('testDraw ')
+  console.log(arrLocObj)
+  for(let locObj of arrLocObj){
+    console.log('locObj ', locObj)
+    let canvCoord= utilObj.convertStateXY(locObj);
+    console.log('canvCoord ', canvCoord)
+    console.log('testcolor ',testColor)
+    ctx.strokeStyle = testColor;
+    ctx.strokeRect(canvCoord.x-(side/2), canvCoord.y-(side/2), side, side);
+    ctx.strokeStyle = BLACK;
+  }
 }
 
 function drawTeamOfPieces(teamOfPieces, bBlackTeam)
@@ -214,6 +266,7 @@ function drawTeamOfPieces(teamOfPieces, bBlackTeam)
     // Loop through each piece and draw it on the canvas
     for (let pieceKey in teamOfPieces)
     {
+      // console.log('wait what ',teamOfPieces)
         drawPiece(teamOfPieces[pieceKey], bBlackTeam);
     }
 
@@ -222,16 +275,19 @@ function drawTeamOfPieces(teamOfPieces, bBlackTeam)
 function drawPiece(curPiece, bBlackTeam)
 {
     var imageCoords = getImageCoords(curPiece.piece, bBlackTeam)
-    var drawCoord= drawPieceStartingPoint(curPiece);
+    var pieceCanvCoord = utilObj.convertStateXY({x:curPiece.x,y:curPiece.y})
+    var topleftDrawCoord= utilObj.topLeftCorner(pieceCanvCoord)
+
     // Draw the piece onto the canvas:
     //First parameter is image src, 2nd and 3rd are coordinates on the image, 4th and 5th are piece size in the image src
     //6 and 7 are coordinates for where the piece begins drawing, the last 2 are height and width (for original image to scale down to)
+    // console.log('curPiece ',curPiece)
+    // console.log('drawCoord ',topleftDrawCoord)
     if(curPiece.status){ctx.drawImage(pieces,
         imageCoords.x, imageCoords.y, IMAGE_SIZE, IMAGE_SIZE,
-        drawCoord.x, drawCoord.y,
+        topleftDrawCoord.x, topleftDrawCoord.y,
         PIECE_SIZE, PIECE_SIZE)};//need the piece_size/2 since you want the piece to be CENTERED on the square corners, so you have to
         //start drawing to the top left of the locations where a block is normally drawn
-
 }
 
 function getImageCoords(pieceCode, bBlackTeam)
@@ -246,127 +302,76 @@ function getImageCoords(pieceCode, bBlackTeam)
 }
 
 //------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------------------------
 //Above is draw... nothing to do with user actions..
 //below actually has to do with user actions.. you need to separate these eventually into their own modules (and files)
+//------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------------------------
 
 function board_click(ev)
 {
-  if(playerTeam=== state.currentTurn){//ONLY handle click events if the player's team matches the current turn team
     var rect = canvasVar.getBoundingClientRect();
     var clickedX = event.clientX - rect.left;//YOU NEED THIS OFFSETTING OR SCROLLING WILL FUCK UP YOUR SHIT
     var clickedY = event.clientY - rect.top;
 
     let clickedLocObj={x:clickedX, y:clickedY};
 
+    // debugging code
     // ctx.fillStyle = "red";//use this and bottom 2 lines to debug hitbox problems (not selecting properly)
     // ctx.fillRect(clickedX,clickedY,10,10);
 
-    if(selectedKey === null)
-    {
-      checkIfPieceClicked(clickedLocObj);
-    }
-    else
-    {
-      processMove(clickedLocObj);
-    }
-  }
+    if(selectedKey === null) selectPiece(clickedLocObj)
+    else processMove(clickedLocObj);
 }
 
-function checkIfCoordInRect(x,y,rectX1,rectY1,rectX2,rectY2){//rectX1,rectY1 are the top left corner of rectangle, X2/Y2 are bottom right corner
-  //checks if coordinate x,y is located within a rectangle
-  //this is used for determining if someone clicked on a piece
-
-  // ctx.fillStyle = "red";//use this and bottom 2 lines to debug hitbox problems (not selecting properly)
-  // ctx.fillRect(x,y,10,10);
-  // ctx.strokeRect(rectX1, rectY1, PIECE_SIZE, PIECE_SIZE);
-
-  // console.log('is x: '+x+'y: '+y+'inside '+rectX1+','+rectY1+' and '+rectX2+','+rectY2)
-  return ((x>rectX1 && x<rectX2)&&(y>rectY1 && y<rectY2));
+function outlinePiece(pieceAtBlock){      // Draw outline
+  // var pieceCanvCoord = convertStateXY({x:pieceAtBlock.x,y:pieceAtBlock.y}, START_LOCOBJ,BLOCK_SIZE)//center of coordinates of piece (in canvas, not in state)
+  var pieceCanvCoord = utilObj.convertStateXY({x:pieceAtBlock.x,y:pieceAtBlock.y})
+  // var topleftDrawCoord= topLeftCorner(pieceCanvCoord,PIECE_SIZE)
+  var topleftDrawCoord= utilObj.topLeftCorner(pieceCanvCoord)
+      ctx.lineWidth = SELECT_LINE_WIDTH;
+      ctx.strokeStyle = HIGHLIGHT_COLOUR;
+      ctx.strokeRect(topleftDrawCoord.x, topleftDrawCoord.y,
+          PIECE_SIZE, PIECE_SIZE);
+      ctx.strokeStyle = BLACK;
 }
 
-function checkIfPieceClicked(clickedLocObj)
+function selectPiece(clickedLocObj)
 {
-    var getPiece = getPieceAtBlock(clickedLocObj);
-    var pieceAtBlock = getPiece.pieceVal;
-    var pieceKey = getPiece.key;
-
-    if (pieceAtBlock !== null)
-    {
-        selectPiece(pieceAtBlock, pieceKey);
-    }
-}
-
-function getPieceAtBlock(clickedLocObj)
-{
-    var team = (state.currentTurn === 'black' ? state.black:state.red);
-    return getPieceAtBlockForTeam(team, clickedLocObj);
-}
-
-function getPieceAtBlockForTeam(teamOfPieces, clickedLocObj, team)
-{
-
-    var curPiece = null,
-        pieceAtBlock = null,
-        pieceCoord,
-        pieceKey;
-    for (let key in teamOfPieces)
-    {
-        curPiece=teamOfPieces[key];
-        pieceCoord= drawPieceStartingPoint(curPiece);
-
-        // ctx.strokeRect(pieceCoord.x, pieceCoord.y, PIECE_SIZE, PIECE_SIZE); // uncomment to test if hitboxes are in the right
-        // locations!!!(just click a piece to show it after you uncomment)
-
-        let inhitBoxBool = checkIfCoordInRect(
-        clickedLocObj.x, clickedLocObj.y,//coordinate of where user clicked
-        pieceCoord.x, pieceCoord.y,//coordinate of top left corner of piece hitbox
-        pieceCoord.x+PIECE_SIZE, pieceCoord.y+PIECE_SIZE)//coordinate of bottom right corner of piece hitbox
-        console.log(inhitBoxBool);
-
-        if (curPiece.status === IN_PLAY && inhitBoxBool)
-        {
-
-            pieceAtBlock = curPiece;
-            pieceKey = key;
-            // iPieceCounter = teamOfPieces.length;//this is to break the loop (why not just break????)***
-            break;
-        }
-    }
-    return {pieceVal: pieceAtBlock, key: pieceKey, team: team};
-}
-
-function selectPiece(pieceAtBlock, pieceKey)//note.. the selectedKey happens at getPieceAtBlockForTeam, not in this function
-{
-  var pieceCoord= drawPieceStartingPoint(pieceAtBlock);
-    // Draw outline
-    ctx.lineWidth = SELECT_LINE_WIDTH;
-    ctx.strokeStyle = HIGHLIGHT_COLOUR;
-    ctx.strokeRect(pieceCoord.x, pieceCoord.y,
-        PIECE_SIZE, PIECE_SIZE);
-    ctx.strokeStyle = BLACK;
-    selectedKey = pieceKey;
-    console.log('Selected Piece is: ',pieceAtBlock)
+  // var pieceAtBlock = utilObj.getPieceAtBlock(clickedLocObj, state.currentTurn);
+  var pieceAtBlock = utilObj.getPieceAtCanvXY(clickedLocObj, state.chessState.currentTurn);
+  if(pieceAtBlock){
+    selectedKey= pieceAtBlock.pieceKey// now you can get selectedPiece easily by doing state[state.currentTurn][selectedKey]
+    outlinePiece(pieceAtBlock);
     showLegalMoves(pieceAtBlock);
+    }
+}
+
+function showLegalMoves(pieceAtBlock){//****
+  //you need to USE the vlaues from get initial, and then draw them out
+  let arrMoves= legalMoves.get(pieceAtBlock);
+  let initialLegalMoves= arrMoves.legalMoves;//THIS NEEDS TO EVENTUALLY BE CHANGED TO RETURN THE INTERSECTION OF SHOW INITIALLEGAL MOVES AND CHECKMATE THINGY
+  let pathMoves= arrMoves.pathMoves;
+  console.log('initial moves: ',initialLegalMoves);
+  console.log('pathMoves: ', pathMoves);
+  testDrawSquares(pathMoves, BLOCK_SIZE/2/2/2, PATH_COLOUR);
+  testDrawSquares(initialLegalMoves, BLOCK_SIZE/2, MOVE_COLOUR);
+
 }
 
 function processMove(clickedLocObj)
 {
-  let pieceObjToMove=state[state.currentTurn][selectedKey];
-  console.log('currentTurn ', state.currentTurn);
-  console.log('selectedKey', selectedKey);
-  let targetCoord=snapToVertex(clickedLocObj);
-  let stateCoord= convertCanvXY(targetCoord.x,targetCoord.y);
-  // console.log('clickedLocObj is ',clickedLocObj)
-  // console.log('targetCoord is ', targetCoord)
-  // processPieceAtTarget(pieceObjToMove,clickedLocObj,targetCoord);
+  let selectedPiece=state.chessState[state.chessState.currentTurn][selectedKey];
+  let targetCoord=utilObj.snapToVertex(clickedLocObj);
+  let stateCoord= utilObj.convertCanvXY({x:targetCoord.x,y:targetCoord.y});
 
-  // console.log(stateCoord);
   let targetResult=processPieceAtTarget(clickedLocObj);
-  if(targetResult===true) movePiece(pieceObjToMove,stateCoord);
+  // console.log('targetResult is ',targetResult)
+  if(targetResult===true) movePiece(selectedPiece,stateCoord);
   else if(targetResult===false) return;
   else {
     deactivatePiece(targetResult);//remember this has key and object.. not just the piece object itself.. basically like pieceTeamandKey
-    movePiece(pieceObjToMove,stateCoord);
+    movePiece(selectedPiece,stateCoord);
   }
   selectedKey=null;
   changeTurn();
@@ -374,50 +379,25 @@ function processMove(clickedLocObj)
 
 function reDraw(){
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  draw(canvas);//THIS WORKS JUST FINE>. I finally fixed it... see comments at the top
-  // drawBoard();//No longer needed
-  // drawPieces();
+  draw(canvas);
 }
 
-function snapToVertex(clickedLocObj){//takes in clickLocObj, representing where user clicked, and returns
-  //snappedCoord (it's basically clickedLocObj, but "centered to a vertex" that is the center of a moveHitBox)
-  let snappedX,
-      snappedY,
-      snappedCoord;
-
-  for(let hitBoxSqObj of moveHitBoxesArr){
-    if(checkIfCoordInRect(
-      clickedLocObj.x, clickedLocObj.y,//coordinate of where user clicked
-      hitBoxSqObj.x1, hitBoxSqObj.y1,//coordinate of top left corner of movehitbox
-      hitBoxSqObj.x2, hitBoxSqObj.y2)//coordinate of bottom right corner of movehitbox
-    )
-    {
-      snappedX= hitBoxSqObj.xCent;
-      snappedY= hitBoxSqObj.yCent;
-      snappedCoord= {x:snappedX, y:snappedY};
-      return snappedCoord;
-    }
-  }
-}
-
-function movePiece(pieceObj,newStateCoord){
-  console.log('old coord: ',pieceObj.x,pieceObj.y)
-  console.log('new coord input: ',newStateCoord.x,newStateCoord.y)
-  let newPiece=Object.assign({},pieceObj);
+function movePiece(selectedPiece,newStateCoord){
+  // for debug
+  // console.log('old coord: ',selectedPiece.x,selectedPiece.y)
+  // console.log('new coord input: ',newStateCoord.x,newStateCoord.y)
+  let newPiece=Object.assign({},selectedPiece);
   newPiece.x=newStateCoord.x;
   newPiece.y=newStateCoord.y;
 
-  let newPieceTeamandKey={team: state.currentTurn, key: selectedKey, pieceVal: newPiece}
-  let socketEmit= socketEmitCreator(UPDATE_PIECES, newPieceTeamandKey, 'Updating server store with new chess state from client (movement)');
+  let socketEmit= socketEmitCreator(UPDATE_PIECES, newPiece, 'Updating server store with new chess state from client (movement)');
   socketEmit();
-  // let pieceChangeAO=change_CH_State_AC(newPieceTeamandKey);
-  // store.dispatch(pieceChangeAO);
 }
 
-function deactivatePiece(pieceTeamandKey){
-  pieceTeamandKey.pieceVal=Object.assign({},pieceTeamandKey.pieceVal);//this is the main thing you want to clone
-  pieceTeamandKey.pieceVal.status=false;
-  let socketEmit= socketEmitCreator(UPDATE_PIECES, pieceTeamandKey, 'Updating server store with new chess state from client (deactivating)');
+function deactivatePiece(piece){
+  piece=Object.assign({},piece);//this is the main thing you want to clone
+  piece.status=false;
+  let socketEmit= socketEmitCreator(UPDATE_PIECES, piece, 'Updating server store with new chess state from client (deactivating)');
   socketEmit();
 }
 
@@ -425,72 +405,25 @@ function removePiece(pieceObj){
   pieceObj.status=false;
 }
 
-function processPieceAtTarget(clickedLocObj)
+function processPieceAtTarget(clickedLocObj)//either returns true, (can move to loc), false (invalid mov), or a piece obj (enemy piece which you will need to deactivate and then move)
 {
     var targetPieceRed,
         targetPieceBlack,
-        enemyPieceandKey;
+        enemyPiece=null;
 
-    targetPieceRed= getPieceAtBlockForTeam(state.red, clickedLocObj, 'red');
-    targetPieceBlack= getPieceAtBlockForTeam(state.black, clickedLocObj, 'black');
+    let opposingTeam= state.chessState.currentTurn === 'red' ? 'black' : 'red';
+    let targettedPiece= utilObj.getPieceAtCanvXY(clickedLocObj);
 
-    console.log('targetted-> red: ',targetPieceRed,'black: ',targetPieceBlack);
-    if(state.currentTurn==='red'){
-      if(targetPieceRed.pieceVal){console.log('invalid move');return false;};//invalid move.. get out of this function and have current player make move again
-      if(targetPieceBlack.pieceVal) enemyPieceandKey=targetPieceBlack;//there's now an enemy piece designated
+    if(targettedPiece){
+      if(targettedPiece.team===opposingTeam) return targettedPiece;//return targettedPiece if enemy
+      else return false;//return false if targettedPiece is ally (don't let move)
     }
-    else if(state.currentTurn==='black'){
-      if(targetPieceBlack.pieceVal){console.log('invalid move');return false;};//invalid move.. get out of this function and have current player make move again
-      if(targetPieceRed.pieceVal) enemyPieceandKey=targetPieceRed;//there's now an enemy piece designated
-    }
-
-    // switch (selectedPiece.piece)
-    // {
-    //     case PIECE_PAWN:
-    //
-    //         bCanMove = canPawnMoveToBlock(selectedPiece, clickedBlock, enemyPiece);
-    //
-    //     break;
-    //
-    //     case PIECE_CASTLE:
-    //
-    //         // TODO
-    //
-    //     break;
-    //
-    //     case PIECE_ROUKE:
-    //
-    //         // TODO
-    //
-    //     break;
-    //
-    //     case PIECE_BISHOP:
-    //
-    //         // TODO
-    //
-    //     break;
-    //
-    //     case PIECE_QUEEN:
-    //
-    //         // TODO
-    //
-    //     break;
-    //
-    //     case PIECE_KING:
-    //
-    //         // TODO
-    //
-    //     break;
-    // }
-
-    return enemyPieceandKey ? enemyPieceandKey : true;
+    else return true;//return true if no targettedPiece (target location is empty, so just move)
 }
 
 function changeTurn(){
-  let nextTurn= state.currentTurn === 'red' ? 'black': 'red';
-  console.log('next turn is ', nextTurn);
+  let nextTurn= state.chessState.currentTurn === 'red' ? 'black': 'red';
+  // console.log('next turn is ', nextTurn);
   let socketEmit= socketEmitCreator(UPDATE_TURN, nextTurn, 'Updating server store to change turn');
   socketEmit();
-  // let changeTurnAO=change_CH_Turn_AC(state.currentTurn === 'red' ? 'black': 'red');
-  // store.dispatch(changeTurnAO);
 }
