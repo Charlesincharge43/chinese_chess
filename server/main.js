@@ -88,9 +88,7 @@ io.on('connection', function (socket) {
     let change_CH_Turn_AO = change_CH_Turn_AC(nextTurn);
     store.dispatch(change_CH_Turn_AO);
   })
-
-
-
+  
   //   socket.broadcast.emit('draw', start, end, color);
   // });//just a broadcast thingy
 

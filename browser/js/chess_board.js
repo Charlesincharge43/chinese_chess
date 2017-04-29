@@ -235,26 +235,9 @@ function drawPieces()
     // drawBoardObj(); //FOR DEBUGGING PURPOSES
 }
 
-// function drawBoardObj(){
-//   for(let y=0;y<state.boardState.length;y++){
-//     for(let x=0;x<state.boardState[y].length; x++){
-//       if(Object.keys(state.boardState[y][x]).length !== 0){
-//         let canvCoord= utilObj.convertStateXY({x,y});
-//         ctx.strokeStyle = TEST_COLOUR;
-//         ctx.strokeRect(canvCoord.x-(BLOCK_SIZE/2), canvCoord.y-(BLOCK_SIZE/2), BLOCK_SIZE, BLOCK_SIZE);
-//       }
-//     }
-//   }
-// }
-
 function testDrawSquares(arrLocObj,side, testColor){//take an array of location objects (stateXY not canvXY), and a side length, draw on canvas squares around the locations
-  console.log('testDraw ')
-  console.log(arrLocObj)
   for(let locObj of arrLocObj){
-    console.log('locObj ', locObj)
     let canvCoord= utilObj.convertStateXY(locObj);
-    console.log('canvCoord ', canvCoord)
-    console.log('testcolor ',testColor)
     ctx.strokeStyle = testColor;
     ctx.strokeRect(canvCoord.x-(side/2), canvCoord.y-(side/2), side, side);
     ctx.strokeStyle = BLACK;

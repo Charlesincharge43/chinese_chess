@@ -18652,22 +18652,8 @@ function drawPieces() {
   // drawBoardObj(); //FOR DEBUGGING PURPOSES
 }
 
-// function drawBoardObj(){
-//   for(let y=0;y<state.boardState.length;y++){
-//     for(let x=0;x<state.boardState[y].length; x++){
-//       if(Object.keys(state.boardState[y][x]).length !== 0){
-//         let canvCoord= utilObj.convertStateXY({x,y});
-//         ctx.strokeStyle = TEST_COLOUR;
-//         ctx.strokeRect(canvCoord.x-(BLOCK_SIZE/2), canvCoord.y-(BLOCK_SIZE/2), BLOCK_SIZE, BLOCK_SIZE);
-//       }
-//     }
-//   }
-// }
-
 function testDrawSquares(arrLocObj, side, testColor) {
   //take an array of location objects (stateXY not canvXY), and a side length, draw on canvas squares around the locations
-  console.log('testDraw ');
-  console.log(arrLocObj);
   var _iteratorNormalCompletion = true;
   var _didIteratorError = false;
   var _iteratorError = undefined;
@@ -18676,10 +18662,7 @@ function testDrawSquares(arrLocObj, side, testColor) {
     for (var _iterator = arrLocObj[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
       var locObj = _step.value;
 
-      console.log('locObj ', locObj);
       var canvCoord = utilObj.convertStateXY(locObj);
-      console.log('canvCoord ', canvCoord);
-      console.log('testcolor ', testColor);
       ctx.strokeStyle = testColor;
       ctx.strokeRect(canvCoord.x - side / 2, canvCoord.y - side / 2, side, side);
       ctx.strokeStyle = BLACK;
@@ -18864,6 +18847,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
+var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
 
 var PIECE_GENERAL = 0;
 var PIECE_GUARD = 1;
@@ -18878,10 +18862,12 @@ function LegalMoves(state, constants) {
   this.constants = constants; //{PIECE_GENERAL: 0, PIECE_GUARD: 1} etc...
 }
 
-LegalMoves.prototype.getFinal = function (selectedPiece) {};
+LegalMoves.prototype.getFinal = function (selectedPiece) {// IF YOU HAVE TIME... do this part for the checkmate and checking logic
+
+};
 
 LegalMoves.prototype.get = function (piece) {
-  var arrMoves = void 0; //should look like { legalMoves: [{x:1,y:1},{x:1,y:2}] , pathMoves: {x:1,y:0}]  } //legalMoves are moves you can make.. .pathMoves are to visually demonstrate the path (for units like elephant and cavs that can be blocked)
+  var arrMoves = { legalMoves: [], pathMoves: [] }; //should look like { legalMoves: [{x:1,y:1},{x:1,y:2}] , pathMoves: {x:1,y:0}]  } //legalMoves are moves you can make.. .pathMoves are to visually demonstrate the path (for units like elephant and cavs that can be blocked)
   switch (piece.piece) {
     case PIECE_SOLDIER:
       arrMoves = this.getSoldierMoves(piece);
@@ -18894,7 +18880,25 @@ LegalMoves.prototype.get = function (piece) {
     case PIECE_CAVALIER:
       arrMoves = this.getCavMoves(piece);
       break;
+
+    case PIECE_ELEPHANT:
+      arrMoves = this.getEleMoves(piece);
+      break;
+
+    case PIECE_CANNON:
+      arrMoves = this.getCannonMoves(piece);
+      break;
+
+    case PIECE_GUARD:
+      arrMoves = this.getGuardMoves(piece);
+      break;
+
+    case PIECE_GENERAL:
+      arrMoves = this.getGenMoves(piece);
+      break;
   }
+
+  arrMoves.pathMoves = !arrMoves.pathMoves ? [] : arrMoves.pathMoves; //better way to do this?
   console.log(arrMoves);
   return arrMoves;
 };
@@ -18916,7 +18920,7 @@ LegalMoves.prototype.getSoldierMoves = function (piece) {
     }
   } else {
     piece.y + 1 <= 9 && arrMoves.push({ x: piece.x, y: piece.y + 1 });
-    if (piece.y > 5) {
+    if (piece.y > 4) {
       piece.x + 1 <= 8 && arrMoves.push({ x: piece.x + 1, y: piece.y });
       piece.x - 1 >= 0 && arrMoves.push({ x: piece.x - 1, y: piece.y });
     }
@@ -18944,7 +18948,6 @@ LegalMoves.prototype.getCharMoves = function (piece) {
     }
     arrMoves.push({ x: piece.x, y: y });
   }
-
   //go down
   for (var _y = piece.y + 1; _y <= 9; _y++) {
     var _pieceOnPath = this.getPieceAtXY({ x: piece.x, y: _y });
@@ -18957,7 +18960,6 @@ LegalMoves.prototype.getCharMoves = function (piece) {
     }
     arrMoves.push({ x: piece.x, y: _y });
   }
-
   //go left
   for (var x = piece.x - 1; x >= 0; x--) {
     var _pieceOnPath2 = this.getPieceAtXY({ x: x, y: piece.y });
@@ -18970,7 +18972,6 @@ LegalMoves.prototype.getCharMoves = function (piece) {
     }
     arrMoves.push({ x: x, y: piece.y });
   }
-
   //go right
   for (var _x = piece.x + 1; _x <= 8; _x++) {
     var _pieceOnPath3 = this.getPieceAtXY({ x: _x, y: piece.y });
@@ -18987,7 +18988,6 @@ LegalMoves.prototype.getCharMoves = function (piece) {
 };
 
 LegalMoves.prototype.getCavMoves = function (piece) {
-  // let arrMoves=[]
   return this.getCavMovesRec({ x: piece.x, y: piece.y }, null, 0, piece.team);
 };
 
@@ -19038,6 +19038,230 @@ LegalMoves.prototype.getCavMovesRec = function (locObj, dir, step, team) {
     }
   }
   return { legalMoves: arrLegalMoves, pathMoves: arrPathMoves };
+};
+
+LegalMoves.prototype.getEleMoves = function (piece) {
+  return this.getEleMovesRec({ x: piece.x, y: piece.y }, null, 0, piece.team);
+};
+
+LegalMoves.prototype.getEleMovesRec = function (locObj, dir, step, team) {
+  var arrLegalMoves = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : [];
+  var arrPathMoves = arguments.length > 5 && arguments[5] !== undefined ? arguments[5] : [];
+
+  var x = locObj.x;var y = locObj.y;
+  var moveNE = { x: x + 1, y: y - 1 },
+      moveSE = { x: x + 1, y: y + 1 },
+      moveSW = { x: x - 1, y: y + 1 },
+      moveNW = { x: x - 1, y: y - 1 };
+  var withinTopBorder = team === 'black' ? moveNE.y >= 0 && moveNW.y >= 0 : moveNE.y >= 5 && moveNW.y >= 5,
+      withinDownBorder = team === 'red' ? moveSE.y <= 9 && moveSW.y <= 9 : moveSE.y <= 5 && moveSW.y <= 4,
+      withinLeftBorder = moveNW.x >= 0 && moveSW.x >= 0,
+      withinRightBorder = moveNE.x <= 8 && moveSE.x <= 8;
+  var pieceOnPathNE = withinRightBorder && withinTopBorder && this.getPieceAtXY(moveNE),
+      pieceOnPathSE = withinRightBorder && withinDownBorder && this.getPieceAtXY(moveSE),
+      pieceOnPathNW = withinLeftBorder && withinTopBorder && this.getPieceAtXY(moveNW),
+      pieceOnPathSW = withinLeftBorder && withinDownBorder && this.getPieceAtXY(moveSW);
+
+  var canMoveNE = pieceOnPathNE && (step === 1 && pieceOnPathNE.team === team || step === 0) ? false : withinRightBorder && withinTopBorder ? true : false;
+  var canMoveSE = pieceOnPathSE && (step === 1 && pieceOnPathSE.team === team || step === 0) ? false : withinRightBorder && withinDownBorder ? true : false;
+  var canMoveNW = pieceOnPathNW && (step === 1 && pieceOnPathNW.team === team || step === 0) ? false : withinLeftBorder && withinTopBorder ? true : false;
+  var canMoveSW = pieceOnPathSW && (step === 1 && pieceOnPathSW.team === team || step === 0) ? false : withinLeftBorder && withinDownBorder ? true : false;
+
+  if (step === 0) {
+    if (canMoveNE) this.getEleMovesRec(moveNE, 'NE', step + 1, team, arrLegalMoves, arrPathMoves);
+    if (canMoveSE) this.getEleMovesRec(moveSE, 'SE', step + 1, team, arrLegalMoves, arrPathMoves);
+    if (canMoveNW) this.getEleMovesRec(moveNW, 'NW', step + 1, team, arrLegalMoves, arrPathMoves);
+    if (canMoveSW) this.getEleMovesRec(moveSW, 'SW', step + 1, team, arrLegalMoves, arrPathMoves);
+  } else if (step === 1) {
+    arrPathMoves.push(locObj);
+    if (dir === 'NE' && canMoveNE) arrLegalMoves.push(moveNE);
+    if (dir === 'SE' && canMoveSE) arrLegalMoves.push(moveSE);
+    if (dir === 'NW' && canMoveNW) arrLegalMoves.push(moveNW);
+    if (dir === 'SW' && canMoveSW) arrLegalMoves.push(moveSW);
+  }
+  return { legalMoves: arrLegalMoves, pathMoves: arrPathMoves };
+};
+
+LegalMoves.prototype.getCannonMoves = function (piece) {
+  var _this = this;
+
+  var arrMoves = { legalMoves: [], pathMoves: [], screens: [] };
+  var cannonMovesInitial = this.getCannonMovesRec({ x: piece.x, y: piece.y }, null, 0, piece.team);
+  arrMoves.legalMoves = arrMoves.legalMoves.concat(cannonMovesInitial.legalMoves);
+  arrMoves.screens = arrMoves.screens.concat(cannonMovesInitial.screens);
+  arrMoves.screens.forEach(function (screenPiece) {
+    var jumpMoves = _this.getCannonJumpMovesRec({ x: screenPiece.piece.x, y: screenPiece.piece.y }, screenPiece.dir, 0, piece.team);
+    arrMoves.legalMoves = arrMoves.legalMoves.concat(jumpMoves.legalMoves);
+    arrMoves.pathMoves = arrMoves.pathMoves.concat(jumpMoves.pathMoves);
+  });
+  return arrMoves;
+};
+
+LegalMoves.prototype.getCannonMovesRec = function (locObj, dir, step, team) {
+  var arrLegalMoves = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : [];
+  var screens = arguments[5];
+
+  var x = locObj.x;var y = locObj.y;
+  var moveUp = { x: x, y: y - 1 },
+      moveDown = { x: x, y: y + 1 },
+      moveLeft = { x: x - 1, y: y },
+      moveRight = { x: x + 1, y: y };
+  var withinTopBorder = moveUp.y >= 0,
+      withinDownBorder = moveDown.y <= 9,
+      withinLeftBorder = moveLeft.x >= 0,
+      withinRightBorder = moveRight.x <= 8;
+  var pieceOnPathUp = withinTopBorder && this.getPieceAtXY(moveUp),
+      pieceOnPathDown = withinDownBorder && this.getPieceAtXY(moveDown),
+      pieceOnPathLeft = withinLeftBorder && this.getPieceAtXY(moveLeft),
+      pieceOnPathRight = withinRightBorder && this.getPieceAtXY(moveRight);
+
+
+  var canMoveUp = pieceOnPathUp ? false : withinTopBorder ? true : false;
+  var canMoveDown = pieceOnPathDown ? false : withinDownBorder ? true : false;
+  var canMoveLeft = pieceOnPathLeft ? false : withinLeftBorder ? true : false;
+  var canMoveRight = pieceOnPathRight ? false : withinRightBorder ? true : false;
+
+  if (step === 0) {
+    screens = [{ piece: pieceOnPathUp, dir: 'up' }, { piece: pieceOnPathDown, dir: 'down' }, { piece: pieceOnPathLeft, dir: 'left' }, { piece: pieceOnPathRight, dir: 'right' }].filter(function (element) {
+      return element.piece;
+    }); //need filter out all falsy elements
+    if (canMoveUp) this.getCannonMovesRec(moveUp, 'up', step + 1, team, arrLegalMoves, screens);
+    if (canMoveDown) this.getCannonMovesRec(moveDown, 'down', step + 1, team, arrLegalMoves, screens);
+    if (canMoveLeft) this.getCannonMovesRec(moveLeft, 'left', step + 1, team, arrLegalMoves, screens);
+    if (canMoveRight) this.getCannonMovesRec(moveRight, 'right', step + 1, team, arrLegalMoves, screens);
+    return { legalMoves: arrLegalMoves, screens: screens };
+  } else if (step > 0) {
+    arrLegalMoves.push(locObj);
+    if (dir === 'up') {
+      if (canMoveUp) this.getCannonMovesRec(moveUp, 'up', step + 1, team, arrLegalMoves, screens);else if (pieceOnPathUp) screens.push({ piece: pieceOnPathUp, dir: 'up' });
+    } else if (dir === 'down') {
+      if (canMoveDown) this.getCannonMovesRec(moveDown, 'down', step + 1, team, arrLegalMoves, screens);else if (pieceOnPathDown) screens.push({ piece: pieceOnPathDown, dir: 'down' });
+    } else if (dir === 'left') {
+      if (canMoveLeft) this.getCannonMovesRec(moveLeft, 'left', step + 1, team, arrLegalMoves, screens);else if (pieceOnPathLeft) screens.push({ piece: pieceOnPathLeft, dir: 'left' });
+    } else if (dir === 'right') {
+      if (canMoveRight) this.getCannonMovesRec(moveRight, 'right', step + 1, team, arrLegalMoves, screens);else if (pieceOnPathRight) screens.push({ piece: pieceOnPathRight, dir: 'right' });
+    }
+  }
+};
+
+LegalMoves.prototype.getCannonJumpMovesRec = function (locObj, dir, step, team) {
+  var arrLegalMoves = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : [];
+  var arrPathMoves = arguments.length > 5 && arguments[5] !== undefined ? arguments[5] : [];
+
+  var x = locObj.x;var y = locObj.y;
+  var moveUp = { x: x, y: y - 1 },
+      moveDown = { x: x, y: y + 1 },
+      moveLeft = { x: x - 1, y: y },
+      moveRight = { x: x + 1, y: y };
+  var withinTopBorder = moveUp.y >= 0,
+      withinDownBorder = moveDown.y <= 9,
+      withinLeftBorder = moveLeft.x >= 0,
+      withinRightBorder = moveRight.x <= 8;
+  var pieceOnPathUp = withinTopBorder && this.getPieceAtXY(moveUp),
+      pieceOnPathDown = withinDownBorder && this.getPieceAtXY(moveDown),
+      pieceOnPathLeft = withinLeftBorder && this.getPieceAtXY(moveLeft),
+      pieceOnPathRight = withinRightBorder && this.getPieceAtXY(moveRight);
+
+
+  var canPathMoveUp = pieceOnPathUp ? false : withinTopBorder ? true : false;
+  var canPathMoveDown = pieceOnPathDown ? false : withinDownBorder ? true : false;
+  var canPathMoveLeft = pieceOnPathLeft ? false : withinLeftBorder ? true : false;
+  var canPathMoveRight = pieceOnPathRight ? false : withinRightBorder ? true : false;
+
+  arrPathMoves.push(locObj);
+
+  if (dir === 'up') {
+    if (canPathMoveUp) this.getCannonJumpMovesRec(moveUp, 'up', step + 1, team, arrLegalMoves, arrPathMoves);else if (pieceOnPathUp && pieceOnPathUp.team !== team) arrLegalMoves.push(moveUp);
+  } else if (dir === 'down') {
+    if (canPathMoveDown) this.getCannonJumpMovesRec(moveDown, 'down', step + 1, team, arrLegalMoves, arrPathMoves);else if (pieceOnPathDown && pieceOnPathDown.team !== team) arrLegalMoves.push(moveDown);
+  } else if (dir === 'left') {
+    if (canPathMoveLeft) this.getCannonJumpMovesRec(moveLeft, 'left', step + 1, team, arrLegalMoves, arrPathMoves);else if (pieceOnPathLeft && pieceOnPathLeft.team !== team) arrLegalMoves.push(moveLeft);
+  } else if (dir === 'right') {
+    if (canPathMoveRight) this.getCannonJumpMovesRec(moveRight, 'right', step + 1, team, arrLegalMoves, arrPathMoves);else if (pieceOnPathRight && pieceOnPathRight.team !== team) arrLegalMoves.push(moveRight);
+  }
+  return step === 0 && { legalMoves: arrLegalMoves, pathMoves: arrPathMoves };
+};
+
+LegalMoves.prototype.getGuardMoves = function (piece) {
+  var _this2 = this;
+
+  var arrMoves = { legalMoves: [] };
+  var potentialMoves = piece.x === 3 && piece.y === 0 || piece.x === 5 && piece.y === 0 || piece.x === 3 && piece.y === 2 || piece.x === 5 && piece.y === 2 ? [{ x: 4, y: 1 }] : piece.x === 3 && piece.y === 7 || piece.x === 5 && piece.y === 7 || piece.x === 3 && piece.y === 9 || piece.x === 5 && piece.y === 9 ? [{ x: 4, y: 8 }] : piece.x === 4 && piece.y === 1 ? [{ x: 3, y: 0 }, { x: 5, y: 0 }, { x: 3, y: 2 }, { x: 5, y: 2 }] : piece.x === 4 && piece.y === 8 && [{ x: 3, y: 7 }, { x: 5, y: 7 }, { x: 3, y: 9 }, { x: 5, y: 9 }];
+
+  arrMoves.legalMoves = potentialMoves.filter(function (locObj) {
+    var pieceAtLoc = _this2.getPieceAtXY(locObj);
+    return !pieceAtLoc || pieceAtLoc.team !== piece.team ? true : false;
+  });
+  return arrMoves;
+};
+
+LegalMoves.prototype.getGenMoves = function (piece) {
+  var arrMoves = { legalMoves: [], pathMoves: [] };
+  arrMoves.legalMoves = arrMoves.legalMoves.concat(this.getGenMovesUsual(piece).legalMoves);
+  var flyingMoves = this.getFlyingGenMovesRec({ x: piece.x, y: piece.y }, piece.team, 0);
+
+  if (flyingMoves.legalMoves.length > 0) {
+    arrMoves.legalMoves = arrMoves.legalMoves.concat(flyingMoves.legalMoves);
+    arrMoves.pathMoves = arrMoves.pathMoves.concat(flyingMoves.pathMoves); //this way, only if flying general move can be made will the pathMoves be displayed
+  }
+  return arrMoves;
+};
+
+LegalMoves.prototype.getGenMovesUsual = function (piece) {
+  var x = piece.x;var y = piece.y;var arrLegalMoves = [];
+  var moveUp = { x: x, y: y - 1 },
+      moveDown = { x: x, y: y + 1 },
+      moveLeft = { x: x - 1, y: y },
+      moveRight = { x: x + 1, y: y };
+
+  var _ref = piece.team === 'red' ? [moveUp.y >= 7, moveDown.y <= 9, moveLeft.x >= 3, moveRight.x <= 5] : [moveUp.y >= 0, moveDown.y <= 2, moveLeft.x >= 3, moveRight.x <= 5],
+      _ref2 = _slicedToArray(_ref, 4),
+      withinTopBorder = _ref2[0],
+      withinDownBorder = _ref2[1],
+      withinLeftBorder = _ref2[2],
+      withinRightBorder = _ref2[3];
+
+  var pieceOnPathUp = withinTopBorder && this.getPieceAtXY(moveUp),
+      pieceOnPathDown = withinDownBorder && this.getPieceAtXY(moveDown),
+      pieceOnPathLeft = withinLeftBorder && this.getPieceAtXY(moveLeft),
+      pieceOnPathRight = withinRightBorder && this.getPieceAtXY(moveRight);
+
+
+  arrLegalMoves.push(pieceOnPathUp && pieceOnPathUp.team === piece.team ? null : withinTopBorder ? moveUp : null);
+  arrLegalMoves.push(pieceOnPathDown && pieceOnPathDown.team === piece.team ? null : withinDownBorder ? moveDown : null);
+  arrLegalMoves.push(pieceOnPathLeft && pieceOnPathLeft.team === piece.team ? null : withinLeftBorder ? moveLeft : null);
+  arrLegalMoves.push(pieceOnPathRight && pieceOnPathRight.team === piece.team ? null : withinRightBorder ? moveRight : null);
+
+  arrLegalMoves = arrLegalMoves.filter(function (el) {
+    return el;
+  });
+  return { legalMoves: arrLegalMoves };
+};
+
+LegalMoves.prototype.getFlyingGenMovesRec = function (locObj, team, step) {
+  var arrLegalMoves = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : [];
+  var arrPathMoves = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : [];
+  //should always return either an empty arrMoves, or an arrMoves with one element (the location of enemy general)
+  var x = locObj.x;var y = locObj.y;
+  var moveUp = { x: x, y: y - 1 },
+      moveDown = { x: x, y: y + 1 };
+  var withinTopBorder = moveUp.y >= 0,
+      withinDownBorder = moveDown.y <= 9;
+  var pieceOnPathUp = withinTopBorder && this.getPieceAtXY(moveUp),
+      pieceOnPathDown = withinDownBorder && this.getPieceAtXY(moveDown);
+
+
+  if (step > 0) arrPathMoves.push(locObj);
+  if (team === 'red') {
+    var canPathMoveUp = pieceOnPathUp ? false : withinTopBorder ? true : false;
+    if (canPathMoveUp) this.getFlyingGenMovesRec(moveUp, team, step + 1, arrLegalMoves, arrPathMoves);else if (pieceOnPathUp && pieceOnPathUp.piece === PIECE_GENERAL) arrLegalMoves.push(moveUp);
+  } else {
+    var canPathMoveDown = pieceOnPathDown ? false : withinDownBorder ? true : false;
+    if (canPathMoveDown) this.getFlyingGenMovesRec(moveDown, team, step + 1, arrLegalMoves, arrPathMoves);else if (pieceOnPathDown && pieceOnPathDown.piece === PIECE_GENERAL) arrLegalMoves.push(moveDown);
+  }
+  if (step === 0) {
+    return { legalMoves: arrLegalMoves, pathMoves: arrPathMoves };
+  }
 };
 
 LegalMoves.prototype.getPieceAtXY = function (locObj) {
