@@ -1,6 +1,6 @@
 'use strict';
 var constantsObj= require('../browser/js/constants');
-const { UPDATE_CHESS_STORE, UPDATE_PIECES, UPDATE_TURN, CHANGE_CH_STATE, CHANGE_CH_TURN, NEW_PLAYER, UPDATE_PLAYERS_STORE } = require('../browser/js/constants');
+const { UPDATE_CHESS_STORE, UPDATE_PIECES, UPDATE_TURN, CHANGE_CH_STATE, CHANGE_CH_TURN, NEW_PLAYER, UPDATE_PLAYERS_STORE, REQUEST_UPDATE_FROM_SERVER } = require('../browser/js/constants');
 const { change_CH_State_AC, change_CH_Turn_AC, change_Player_AC, add_Player_AC, remove_Player_AC } = require('./store');
 
 /* eslint-disable global-require */
@@ -37,12 +37,15 @@ io.on('connection', function (socket) {
 
   function updateClientsChessState(){
     // console.log('emitting chess state to clients ');
-    socket.emit(UPDATE_CHESS_STORE, store.getState().chessState)
+    io.emit(UPDATE_CHESS_STORE, store.getState().chessState)
   }
+
+  updateClientsChessState();
+  //First emit to update chess store at the beginning, works perfect!
 
   function updateClientsPlayersState(){
     // console.log('emitting player state to clients ');
-    socket.emit(UPDATE_PLAYERS_STORE, store.getState().playersState)
+    io.emit(UPDATE_PLAYERS_STORE, store.getState().playersState)//WHY DID SOCKET.EMIT WORK EAERLIER (WHEN I HAD STORE.SUBSCRIBE() UNCOMMENTED IT SENT TO ALL? SO WERID)
   }
 
   function updTeamsinPlayersState(){
@@ -56,18 +59,26 @@ io.on('connection', function (socket) {
     store.dispatch(change_Player_AO0);
     let change_Player_AO1= change_Player_AC(player1_Obj);
     store.dispatch(change_Player_AO1);
+    // console.log(store.getState().playersState);
+    updateClientsPlayersState();
   }
 
-  store.subscribe(() => {
-    // console.log('server store changed!!!');
-    // console.log('new player store is :',store.getState().playersState)
-    // console.log('cannon 1: ',store.getState().chessState.red.CAN1)
+  //It was very clever of you to make a listener for changes in the store and update clients with new information whenever there are changes
+  //but honestly it just doesn't work out as well as intended.  Because clients emit small changes (3 emits per turn usually), the server ends up
+  //emitting back 6 times, when really it should emit back twice (once for update chess state and once for update playersstate)
+  // I'd actually still like to implement this somehow.. aska bout it later
+  // store.subscribe(() => {
+  //   updateClientsChessState();
+  //   updateClientsPlayersState();
+  // })
+
+  // console.log('checking const ',REQUEST_UPDATE_FROM_SERVER)
+
+  socket.on(REQUEST_UPDATE_FROM_SERVER, function(){
+    console.log('received request to update clients with chessState and players information')
     updateClientsChessState();
     updateClientsPlayersState();
   })
-
-  updateClientsChessState();
-  //First emit to update chess store at the beginning, works perfect!  NOTE.. you want to make this BROADCAST EVENTUALLY!!!!!
 
   socket.on(NEW_PLAYER, function(playerName){
     // console.log('new player.. adding');
@@ -75,11 +86,12 @@ io.on('connection', function (socket) {
     let add_Player_AO= add_Player_AC(newPlayerObj);
     store.dispatch(add_Player_AO);
     updTeamsinPlayersState();
+    // updateClientsPlayersState();
   })
 
   socket.on(UPDATE_PIECES, function(pieceChangeObj){
-    console.log('recieved updated chess state from client');
-    console.log(pieceChangeObj)
+    // console.log('recieved updated chess state from client');
+    // console.log(pieceChangeObj)
     let change_CH_State_AO = change_CH_State_AC(pieceChangeObj);
     store.dispatch(change_CH_State_AO);
   })
@@ -88,13 +100,11 @@ io.on('connection', function (socket) {
     let change_CH_Turn_AO = change_CH_Turn_AC(nextTurn);
     store.dispatch(change_CH_Turn_AO);
   })
-  
-  //   socket.broadcast.emit('draw', start, end, color);
-  // });//just a broadcast thingy
 
   socket.on('disconnect', function () {
     store.dispatch(remove_Player_AC(socket.id));
     updTeamsinPlayersState();
+
     console.log('Goodbye, ', socket.id, ' :(');
   });
 });

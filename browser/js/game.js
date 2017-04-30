@@ -26,15 +26,27 @@ export function Game(boardState, chessState, parent=null, turnNumber=0){//Becaus
 
 Game.prototype.display= function(){//a quick and easy way to display the board on the console, without having to render to canvas (for debugging purposes)
   console.log('current turn (next move): ', this.chessState.currentTurn+'\n\n');
+  if(this.chessState.ended) console.log('MCTS reached end of game, with a victory for team '+this.chessState.winner+'\n');
   // console.log('Game ended: ',this.chessState.ended, 'Winner: ', this.chessState.winner+'\n');
   let colCounter=0; let rowCounter=0;
   this.boardState.forEach(row=>{
     let rowstr='';
+    let charArr=[]; let styleArr=[];
     row.forEach(objAtVertex=>{
-      if(Object.keys(objAtVertex).length) rowstr=rowstr.concat(this.chessState[objAtVertex.team][objAtVertex.key].piece+' ')
-      else rowstr=rowstr.concat('+ ');
+      let color, char;
+      if(Object.keys(objAtVertex).length){
+        color= objAtVertex.team==='red' ? 'red' : 'blue';  styleArr.push(color);
+        char= this.chessState[objAtVertex.team][objAtVertex.key].piece;  charArr.push(char+' ');
+        // rowstr=rowstr.concat(this.chessState[objAtVertex.team][objAtVertex.key].piece+' ')
+      }
+      else{ charArr.push('+ '); styleArr.push('black');}
+      // else rowstr=rowstr.concat('+ ');
     })
-    console.log(rowstr+'\n')
+    console.log(
+      `%c${charArr[0]}`+`%c${charArr[1]}`+`%c${charArr[2]}`+`%c${charArr[3]}`+`%c${charArr[4]}`+`%c${charArr[5]}`+`%c${charArr[6]}`+`%c${charArr[7]}`+`%c${charArr[8]}`,
+      `color:${styleArr[0]};`,`color:${styleArr[1]};`,`color:${styleArr[2]};`,`color:${styleArr[3]};`,`color:${styleArr[4]};`,`color:${styleArr[5]};`,`color:${styleArr[6]};`,`color:${styleArr[7]};`,`color:${styleArr[8]};`
+    )
+    // console.log(rowstr+'\n')
   })
   console.log('\n\n\n');
 }
@@ -45,7 +57,7 @@ Game.prototype.display= function(){//a quick and easy way to display the board o
 // }
 
 Game.prototype.populateLegalMoves= function(){
-  console.log('populating move for ',this.chessState.currentTurn)
+  // console.log('populating move for ',this.chessState.currentTurn)
   this.populateLegalMovesforTeam(this.chessState.currentTurn);
   // console.log('should be returning this ',this.legalMoves)
   return this.legalMoves;
@@ -57,11 +69,13 @@ Game.prototype.populateLegalMovesforTeam= function(team){
 
   for(let key in this.chessState[team]){
     let currentPiece= this.chessState[team][key];
-    let allMoveObjsforPiece= legalMoves.get(currentPiece).legalMoves
+    if(currentPiece.status){//YOU FORGOT TO INCLUDE THIS SO THE AI WAS TRYING TO MOVE DEAD PIECES (AND KILLING ENEMY PIECES WITH THEM LOL)
+      let allMoveObjsforPiece= legalMoves.get(currentPiece).legalMoves
       .map(locObj=>{
         return this.createMove(currentPiece,locObj)
       })
-    arrToPop= arrToPop.concat(allMoveObjsforPiece)
+      arrToPop= arrToPop.concat(allMoveObjsforPiece)
+    }
   }
 
   if(team===this.chessState.currentTurn) this.legalMoves=arrToPop;
@@ -150,7 +164,8 @@ Game.prototype.evaluate= function(){//if it's simply too resource intensive for 
         redScore+= 9;
           break;
         case PIECE_CANNON:
-        redScore+= 4.5;
+        // redScore+= 4.5;
+        redScore+= 6.5;
           break;
         case PIECE_SOLDIER://I should add a special property to the soldier pieces that can tell you if they are across river or not.. that way i can adjust score (1 for not cross, 2 for cross)
         redScore+= 1.5;
@@ -176,7 +191,8 @@ Game.prototype.evaluate= function(){//if it's simply too resource intensive for 
         blackScore+= 9;
           break;
         case PIECE_CANNON:
-        blackScore+= 4.5;
+        // blackScore+= 4.5;
+        blackScore += 6.5;
           break;
         case PIECE_SOLDIER://I should add a special property to the soldier pieces that can tell you if they are across river or not.. that way i can adjust score (1 for not cross, 2 for cross)
         blackScore+= 1.5;
@@ -185,9 +201,10 @@ Game.prototype.evaluate= function(){//if it's simply too resource intensive for 
     }
     if(piece.piece=== PIECE_GENERAL && !piece.status) return {redScore: 1, blackScore: 0};
   }
-  console.log('redscore: ', redScore, 'blackScore: ', blackScore)
+  // console.log('redscore: ', redScore, 'blackScore: ', blackScore)
   total= redScore+blackScore;
-  return {redScore: redScore/(total), blackScore: blackScore/(total)};
+
+  return {redScore: Math.round(redScore/total*100)/100, blackScore: Math.round(blackScore/total*100)/100};
 }
 
 Game.prototype.changeTurn= function(){

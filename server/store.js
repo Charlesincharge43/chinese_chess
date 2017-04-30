@@ -346,12 +346,12 @@ const chessStateReducer = function (prevState = initialChessState, action){
 
 	switch(action.type){
 		case CHANGE_CH_STATE:
-			console.log(action)
+			// console.log(action)
 			let pieceChangeObj= action.pieceChangeObj;
 			let team= pieceChangeObj.team
 			let key= pieceChangeObj.pieceKey
-			console.log('newState is ',newState, 'team',team)
-			console.log('newState[team] is ', newState[team])
+			// console.log('newState is ',newState, 'team',team)
+			// console.log('newState[team] is ', newState[team])
 			newState[team][key]=pieceChangeObj;
 			return newState;
 

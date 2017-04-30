@@ -1,10 +1,17 @@
 import thunkMiddleware from 'redux-thunk';
 import { createStore, applyMiddleware, combineReducers } from 'redux';
 import { createLogger } from 'redux-logger';
+import { deepCloneBoardState } from '../js/utils'
 
 const CHANGE_CH_STATE_EVERYTHING='CHANGE_CH_STATE_EVERYTHING';
 export const change_CH_State_Everything_AC = (entireChessStateObj)=>{
 	return {type: CHANGE_CH_STATE_EVERYTHING, entireChessStateObj: entireChessStateObj}
+}
+
+export const change_chess_state_TC= (entireChessStateObj)=>{
+	return function thunk(dispatch){
+		return Promise.resolve(dispatch(change_CH_State_Everything_AC(entireChessStateObj)));
+	}
 }
 
 const CHANGE_PLAYERS_STATE= 'CHANGE_PLAYERS_STATE';
@@ -25,6 +32,31 @@ export const update_currPlayer_AC= (playerObj)=>{
 const CHANGE_BOARD = 'CHANGE_BOARD';
 export const change_board= (board)=>{
 	return {type: CHANGE_BOARD, board: board}
+}
+
+const ACTIVATE_AI = 'ACTIVATE_AI';
+export const activate_AI= () => {
+	return {type: ACTIVATE_AI}
+}
+
+const DEACTIVATE_AI = 'DEACTIVATE_AI';
+export const deactivate_AI= () => {
+	return {type: DEACTIVATE_AI}
+}
+
+// const AI_NEXT_MOVE = 'AI_NEXT_MOVE';
+// export const action_AI_next_move= (moveObj) => {
+// 	return {type: AI_NEXT_MOVE, nextMove: moveObj}
+// }
+
+const AI_THINKING_ON = 'AI_THINKING_ON';
+export const set_AI_thinking_on= () =>{
+	return {type: AI_THINKING_ON}
+}
+
+const AI_THINKING_OFF = 'AI_THINKING_OFF';
+export const set_AI_thinking_off= () =>{
+	return {type: AI_THINKING_OFF}
 }
 
 //MAKE A WINNER ACTION CREATOR (AND CASE IN REDUCER)
@@ -65,13 +97,20 @@ const initialState = {
 const initialBoard = [[{"team":"black","key":"CH1"},{"team":"black","key":"CAV1"},{"team":"black","key":"ELE1"},{"team":"black","key":"GU1"},{"team":"black","key":"GEN"},{"team":"black","key":"GU2"},{"team":"black","key":"ELE2"},{"team":"black","key":"CAV2"},{"team":"black","key":"CH2"}],[{},{},{},{},{},{},{},{},{}],[{},{"team":"black","key":"CAN1"},{},{},{},{},{},{"team":"black","key":"CAN2"},{}],[{"team":"black","key":"SOL1"},{},{"team":"black","key":"SOL2"},{},{"team":"black","key":"SOL3"},{},{"team":"black","key":"SOL4"},{},{"team":"black","key":"SOL5"}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{"team":"red","key":"SOL1"},{},{"team":"red","key":"SOL2"},{},{"team":"red","key":"SOL3"},{},{"team":"red","key":"SOL4"},{},{"team":"red","key":"SOL5"}],[{},{"team":"red","key":"CAN1"},{},{},{},{},{},{"team":"red","key":"CAN2"},{}],[{},{},{},{},{},{},{},{},{}],[{"team":"red","key":"CH1"},{"team":"red","key":"CAV1"},{"team":"red","key":"ELE1"},{"team":"red","key":"GU1"},{"team":"red","key":"GEN"},{"team":"red","key":"GU2"},{"team":"red","key":"ELE2"},{"team":"red","key":"CAV2"},{"team":"red","key":"CH2"}]]
 
 export const boardStateReducer = function (prevState = initialBoard, action){
-	let newState=initialBoard.slice(0);//copy outer array
-	for(let yArr of newState){
-		yArr= yArr.slice(0);//copy inner array
-		for(let lookupVal of yArr){
-			lookupVal= Object.assign({},lookupVal);//copy objects inside the array
-		}
-	}
+
+	let newState= deepCloneBoardState(initialBoard);
+	// console.log(newState)
+	// console.log('action.board ', action.board)
+	
+	//DELETE the below if things are working fine
+	// let newState=initialBoard.slice(0);//copy outer array
+	// for(let yArr of newState){
+	// 	yArr= yArr.slice(0);//copy inner array
+	// 	for(let lookupVal of yArr){
+	// 		lookupVal= Object.assign({},lookupVal);//copy objects inside the array
+	// 	}
+	// }
+
 	switch(action.type){
 		case CHANGE_BOARD:
 			newState= action.board;
@@ -137,11 +176,43 @@ const currentPlayerStateReducer = function(prevState = {}, action){
 	}
 }
 
+const aiStateReducer = function(prevState = {active: false, thinking: false }, action){
+	let newState = Object.assign({},prevState);
+
+	switch(action.type){
+		case ACTIVATE_AI:
+			newState.active= true;
+			return newState;
+
+		case DEACTIVATE_AI:
+			newState.active= false;
+			return newState;
+
+		// case AI_NEXT_MOVE:
+		// 	newState.nextMove=action.nextMove;
+		// 	return newState;
+
+		case AI_THINKING_ON:
+			newState.thinking=true;
+			return newState;
+
+		case AI_THINKING_OFF:
+			newState.thinking=false;
+			return newState;
+
+		default:
+			return prevState;
+
+
+	}
+}
+
 let reducers=combineReducers({
   chessState: chessStateReducer,
 	playersState: playersStateReducer,
 	currentPlayerState: currentPlayerStateReducer,
-	boardState: boardStateReducer,//This is the only thing that does not get anything from server (this is recreated every time from chessState - when that changes)
+	boardState: boardStateReducer,//This and the aiState below are only things that do not get anything from server (board is recreated every time from chessState - when that changes)
+	aiState: aiStateReducer,//
 });
 
 export const store = createStore(reducers,applyMiddleware(createLogger(),thunkMiddleware));

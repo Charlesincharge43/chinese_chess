@@ -146,9 +146,7 @@ UtilObj.prototype.topLeftCorner=function(locObj){
 
 UtilObj.prototype.getPieceAtCanvXY=function(clickedlocObj, currentTeam){
   let canvCoord= this.snapToVertex(clickedlocObj);
-  // console.log(clickedlocObj)
   let stateXY= this.convertCanvXY(canvCoord);
-  // console.log(this.convertCanvXY(canvCoord));
   let clickedPiece= this.getPieceAtXY(stateXY)
   if(clickedPiece && currentTeam)  return clickedPiece.team=== currentTeam ? this.getPieceAtXY(stateXY) : null;
   return clickedPiece;

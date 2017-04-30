@@ -1,4 +1,4 @@
-import { CONNECT, UPDATE_PIECES, UPDATE_TURN, NEW_PLAYER } from './constants'; //remember you can't import or export client side... need node
+import { CONNECT, UPDATE_PIECES, UPDATE_TURN, NEW_PLAYER, REQUEST_UPDATE_FROM_SERVER } from './constants'; //remember you can't import or export client side... need node
 // import initialState from './defaultState'; //NO LONGER USING THIS
 import {store, change_CH_State_AC, change_CH_Key_AC, change_CH_Turn_AC, change_CH_State_Everything_AC, chessStateReducer} from '../react/store';
 import { soldierLegalMoves } from './legalMoves';
@@ -85,18 +85,16 @@ export const draw = function(canvas)
         // Draw the background
         drawBoard();
 
-        // defaultPositions();//MYSTERY SOLVED... DEFAULT POSITIONS!!!!  You were running default positions!!!  THATS WHY THINGS WERE REVERTING
-
         moveHitBoxes();//this will change the global variable moveHitBoxesArr
         utilObj.moveHitBoxesArr=moveHitBoxesArr;
 
         // Draw pieces
         pieces = new Image();// Draw pieces ***** I don't get this part at all :( // I kinda get it now
         pieces.onload = drawPieces;
-        pieces.src = '/xiangqi-pieces-sprites.png';//dimensions: width 2100, height, 600
+        // pieces.src = '/xiangqi-pieces-sprites.png';//dimensions: width 2100, height, 600
+        pieces.src = '/xiangqi-pieces-sprites-western.png';
 
         //ONLY add click event listeners if the player's team matches the current turn team
-
         if(playerTeam=== state.chessState.currentTurn){
           canvas.addEventListener('click', board_click, false);
         }
@@ -105,7 +103,6 @@ export const draw = function(canvas)
           // console.log('turn changed, so removing click handlers for team ', playerTeam)
           canvas.removeEventListener('click', board_click, false);
         }
-
     }
     else
     {
@@ -116,9 +113,15 @@ export const draw = function(canvas)
 function loadStatefromStore(){
   console.log('loading new state (for drawing) from local store');
   var storeState= store.getState();//When the server data is loaded, this is what kicks off the re-rendering
-  // state = storeState.chessState;
   state = storeState;
   playerTeam = storeState.currentPlayerState.team;
+  if(state.chessState.currentTurn){
+    let consoleBoard= new Game(state.boardState, state.chessState);
+    let score= consoleBoard.evaluate();
+    console.log('score is currently: ', score);
+    // console.log('asdfasdf', consoleBoard);
+    consoleBoard.display();
+  }
 }
 
 function drawBoard()
@@ -298,6 +301,7 @@ function board_click(ev)
 }
 
 function outlinePiece(pieceAtBlock){      // Draw outline
+  console.log('here')
   // var pieceCanvCoord = convertStateXY({x:pieceAtBlock.x,y:pieceAtBlock.y}, START_LOCOBJ,BLOCK_SIZE)//center of coordinates of piece (in canvas, not in state)
   var pieceCanvCoord = utilObj.convertStateXY({x:pieceAtBlock.x,y:pieceAtBlock.y})
   // var topleftDrawCoord= topLeftCorner(pieceCanvCoord,PIECE_SIZE)
@@ -309,8 +313,8 @@ function outlinePiece(pieceAtBlock){      // Draw outline
       ctx.strokeStyle = BLACK;
 }
 
-function selectPiece(clickedLocObj)// THIS IS ONLY USED FOR TESTING GAME.JS
-{
+// function selectPiece(clickedLocObj)// THIS IS ONLY USED FOR TESTING GAME.JS
+// {
   //this is in lieu of making a legitimate test (now I think of it you really should make them.. it's just too time consuming)
   // let game= new Game(state.boardState, state.chessState);
   // console.log('Starting board: '); game.display();
@@ -347,16 +351,18 @@ function selectPiece(clickedLocObj)// THIS IS ONLY USED FOR TESTING GAME.JS
   // console.log(game.evaluate());
 
 // ------------- this is for testing the actual MCTS
-  let game= new Game(state.boardState, state.chessState);
-  let mcts= new MonteCarlo(game,5000,200);
-  let rootNode= new StatsNode(game);  rootNode.sims=100; rootNode.wins=60;
-  let child1= new StatsNode(game, rootNode, 1); child1.sims=40; child1.wins=23;
-  let child2= new StatsNode(game, rootNode, 1); child2.sims=4; child2.wins=2;
-  let child3= new StatsNode(game, rootNode, 1); child3.sims=56; child3.wins=25;
-  rootNode.setChildren([child1, child2, child3]);
-  let selectedNode= mcts.select(rootNode);  console.log('selectedNode ',selectedNode);
+
+  // let game= new Game(state.boardState, state.chessState);
+  // let mcts= new MonteCarlo(game,5000,50);
+  // mcts.bestMove();
+  // let rootNode= new StatsNode(game);  rootNode.sims=100; rootNode.wins=60;
+  // let child1= new StatsNode(game, rootNode, 1); child1.sims=40; child1.wins=23;
+  // let child2= new StatsNode(game, rootNode, 1); child2.sims=4; child2.wins=2;
+  // let child3= new StatsNode(game, rootNode, 1); child3.sims=56; child3.wins=25;
+  // rootNode.setChildren([child1, child2, child3]);
+  // let selectedNode= mcts.select(rootNode);  console.log('selectedNode ',selectedNode);
   // child3.game.display();
-  mcts.expand(child3);
+  // mcts.expand(child3);
   // console.log('child3 should now have children with game states representing red moves', child3);
   // // child3.children[0].game.display();
   // mcts.expand(child3.children[0]);
@@ -366,20 +372,41 @@ function selectPiece(clickedLocObj)// THIS IS ONLY USED FOR TESTING GAME.JS
   // child3.children[0].children[0].children[0].game.display();
   // mcts.expand(child3.children[0].children[0].children[0]);
   // child3.children[0].children[0].children[0].children[0].game.display();
-  let result=mcts.run_simulation(child3);
-  console.log(result);
-}
 
-// function selectPiece(clickedLocObj)    //REINSTATE THIS BLOCK OF CODE AFTER TESTING YOUR GAME.JS
-// {
-//
-//   var pieceAtBlock = utilObj.getPieceAtCanvXY(clickedLocObj, state.chessState.currentTurn);
-//   if(pieceAtBlock){
-//     selectedKey= pieceAtBlock.pieceKey;
-//     outlinePiece(pieceAtBlock);
-//     showLegalMoves(pieceAtBlock);
-//     }
+  // let rootNode2= new StatsNode(game);
+  // mcts.expand(rootNode2);
+  // for(let childNode of rootNode2.children){
+  //   let results= mcts.run_simulation(childNode);
+  //   mcts.update(childNode, results)
+  // }
+  //
+  // let selectedChild=mcts.select(rootNode2);
+  // mcts.expand(selectedChild);
+  // for(let childNode2 of selectedChild.children){
+  //   let results2= mcts.run_simulation(childNode2);
+  //   mcts.update(childNode2, results2)
+  // }
+  //
+  // let selectedChild2=mcts.select(rootNode2);
+  // mcts.expand(selectedChild2);
+  // for(let childNode3 of selectedChild2.children){
+  //   let results3= mcts.run_simulation(childNode3);
+  //   mcts.update(childNode3, results3)
+  // }
+  // console.log(selectedChild);
+  // console.log(selectedChild2);
+  // console.log(rootNode2);
 // }
+
+function selectPiece(clickedLocObj)    //REINSTATE THIS BLOCK OF CODE AFTER TESTING YOUR GAME.JS
+{
+  var pieceAtBlock = utilObj.getPieceAtCanvXY(clickedLocObj, state.chessState.currentTurn);
+  if(pieceAtBlock){
+    selectedKey= pieceAtBlock.pieceKey;
+    outlinePiece(pieceAtBlock);
+    showLegalMoves(pieceAtBlock);
+    }
+}
 
 function showLegalMoves(pieceAtBlock){//****
   let arrMoves= legalMoves.get(pieceAtBlock);
@@ -411,6 +438,20 @@ function processMove(clickedLocObj)
 function reDraw(){
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   draw(canvas);
+}
+
+export function mctsGetBestMove() {
+  let game= new Game(state.boardState, state.chessState);
+  let mcts= new MonteCarlo(game,7000,25);
+  return mcts.bestMove();
+}
+
+export function mctsMove(movePieceObj) {//movePieceObj-> { selectedPieceLookupVal: {...}, targetLoc: {x:... , y:... } }
+  let targetResult= utilObj.getPieceAtXY(movePieceObj.targetLoc);
+  let selectedPiece= state.chessState[movePieceObj.selectedPieceLookupVal.team][movePieceObj.selectedPieceLookupVal.key];
+  if(targetResult) deactivatePiece(targetResult);
+  movePiece(selectedPiece, movePieceObj.targetLoc);
+  changeTurn();
 }
 
 function movePiece(selectedPiece,newStateCoord){
@@ -453,4 +494,10 @@ function changeTurn(){
   let nextTurn= state.chessState.currentTurn === 'red' ? 'black': 'red';
   let socketEmit= socketEmitCreator(UPDATE_TURN, nextTurn, 'Updating server store to change turn');
   socketEmit();
+
+  setTimeout(()=>{
+    let emitRequestForUp= socketEmitCreator(REQUEST_UPDATE_FROM_SERVER, null, 'Requesting server for update');
+    emitRequestForUp();
+        }
+    , 250);//this is my hacky solution for making the server
 }
