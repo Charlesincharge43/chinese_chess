@@ -27,6 +27,10 @@ export const change_board= (board)=>{
 	return {type: CHANGE_BOARD, board: board}
 }
 
+//MAKE A WINNER ACTION CREATOR (AND CASE IN REDUCER)
+
+//MAKE A ENDED ACTION CREATOR (AND CASE IN REDUCER)
+
 // later just have all these constants in constants
 const PIECE_GENERAL = 0;
 const PIECE_GUARD = 1;
@@ -41,6 +45,8 @@ const initialState = {
 	"black":{},
 	"red":{},
 	"currentTurn":null,
+	"ended":false,
+	"winner": null,
 }
 
 // const initialBoard= [
@@ -62,8 +68,8 @@ export const boardStateReducer = function (prevState = initialBoard, action){
 	let newState=initialBoard.slice(0);//copy outer array
 	for(let yArr of newState){
 		yArr= yArr.slice(0);//copy inner array
-		for(let positionObj of yArr){
-			positionObj= Object.assign({},positionObj);//copy objects inside the array
+		for(let lookupVal of yArr){
+			lookupVal= Object.assign({},lookupVal);//copy objects inside the array
 		}
 	}
 	switch(action.type){
@@ -77,7 +83,7 @@ export const boardStateReducer = function (prevState = initialBoard, action){
 }
 
 export const chessStateReducer = function (prevState = initialState, action){
-	let newState = Object.assign({}, prevState);
+	let newState = Object.assign({}, prevState);//**** on second thought, do we even NEED deep clone here?  you're simply assigning newState to action.entireChessStateObj from server... cloning makes no difference because you are not changing small parts of the original chessState
   newState.black = Object.assign({}, prevState.black);
   newState.red = Object.assign({}, prevState.red);
   Object.keys(prevState.black).forEach((key)=>{
@@ -130,9 +136,6 @@ const currentPlayerStateReducer = function(prevState = {}, action){
 			return prevState;
 	}
 }
-
-
-
 
 let reducers=combineReducers({
   chessState: chessStateReducer,

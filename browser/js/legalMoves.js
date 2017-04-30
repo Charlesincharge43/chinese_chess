@@ -10,7 +10,7 @@ var PIECE_SOLDIER = 6
 
 function LegalMoves (state, constants){
   this.state=state;
-  this.constants=constants;//{PIECE_GENERAL: 0, PIECE_GUARD: 1} etc...
+  this.constants=constants;//{PIECE_GENERAL: 0, PIECE_GUARD: 1} etc...   //maybe implement this later
 }
 
 LegalMoves.prototype.getFinal=function(selectedPiece){// IF YOU HAVE TIME... do this part for the checkmate and checking logic
@@ -18,7 +18,10 @@ LegalMoves.prototype.getFinal=function(selectedPiece){// IF YOU HAVE TIME... do 
 }
 
 LegalMoves.prototype.get= function(piece){
-  let arrMoves= {legalMoves:[], pathMoves:[]};//should look like { legalMoves: [{x:1,y:1},{x:1,y:2}] , pathMoves: {x:1,y:0}]  } //legalMoves are moves you can make.. .pathMoves are to visually demonstrate the path (for units like elephant and cavs that can be blocked)
+  let arrMoves= {legalMoves:[], pathMoves:[]};
+  //should look like { legalMoves: [{x:1,y:1},{x:1,y:2}] , pathMoves: {x:1,y:0}]  }
+  //legalMoves are moves you can make.. .pathMoves are to visually demonstrate the path (for units like elephant and cavs that can be blocked)
+  //legalMoves are used by the AI and humans, pathMoves are only used as visual markers to aid humans (and not used by AI)
   switch (piece.piece){
     case PIECE_SOLDIER:
     arrMoves= this.getSoldierMoves(piece);
@@ -50,7 +53,7 @@ LegalMoves.prototype.get= function(piece){
   }
 
   arrMoves.pathMoves= !arrMoves.pathMoves ? [] : arrMoves.pathMoves;//better way to do this?
-  console.log(arrMoves);
+  // console.log(arrMoves);
   return arrMoves;
 }
 
@@ -377,7 +380,6 @@ LegalMoves.prototype.getFlyingGenMovesRec= function(locObj, team, step, arrLegal
 }
 
 LegalMoves.prototype.getPieceAtXY= function(locObj){//not very dry.. this is repeated in utils... how to fix this?
-  console.log('locObj is ', locObj)
   let x=locObj.x;
   let y=locObj.y;
   let lookup= this.state.boardState[y][x];

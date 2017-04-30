@@ -309,6 +309,8 @@ const initialChessState =
 	},
 		"selectedKey": null,
 		"currentTurn": 'red',//it's always been up for debate who is "supposed" to have the first turn traditionally, but most modern tourneys say red
+		"ended":false,
+		"winner": null,
 };
 
 // function populateBoard(state){//used this outside of this file (and JSON.stringify it) to get what I needed to copy and past into initialChessState.board

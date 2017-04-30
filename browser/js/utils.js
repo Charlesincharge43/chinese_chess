@@ -51,8 +51,41 @@ export function populateBoard(chessState){
   return board;
 }
 
+export function deepCloneChessState(chessState){
+
+  const newChessState = Object.assign({}, chessState);
+  newChessState.black = Object.assign({}, chessState.black);
+  newChessState.red = Object.assign({}, chessState.red);
+  Object.keys(chessState.black).forEach((key)=>{
+    newChessState.black[key]=Object.assign({}, chessState.black[key]);
+  });
+  Object.keys(chessState.red).forEach((key)=>{
+    newChessState.red[key]=Object.assign({}, chessState.red[key]);
+  })
+  return newChessState;
+}
+
+export function deepCloneBoardState(boardState){
+  let newBoardState=boardState.slice(0);//copy outer array
+  for (let i = 0; i < boardState.length; i++){
+    newBoardState[i]= newBoardState[i].slice(0);//copy inner array
+    for (let j = 0; j < newBoardState[i].length; j++){
+      newBoardState[i][j]=Object.assign({},newBoardState[i][j]);//copy object
+    }
+  }
+  return newBoardState;
+}
+
+export function shuffle(arr) {
+    for (let i = arr.length; i; i--) {
+        let j = Math.floor(Math.random() * i);
+        [arr[i - 1], arr[j]] = [arr[j], arr[i - 1]];
+    }
+}
+
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+
 UtilObj.prototype.snapToVertex= function(clickedLocObj){//takes in clickLocObj, representing where user clicked, and returns
   //snappedCoord (it's basically clickedLocObj, but "centered to a vertex" that is the center of a moveHitBox)
   let snappedX,

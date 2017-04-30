@@ -5,8 +5,6 @@ import { soldierLegalMoves } from './legalMoves';
 import { socketEmitCreator } from '../react/socket';
 import { UtilObj, getPieceAtCanvXY, snapToVertex, convertStateXY, topLeftCorner } from './utils';
 import LegalMoves from './legalMoves'
-import { Game } from './Game'
-import { MonteCarlo, StatsNode } from './mcts'
 
 var NUMBER_OF_ROWS = 9;
 var NUMBER_OF_COLS = 8;
@@ -188,6 +186,7 @@ function drawBlock(iRowCounter, iBlockCounter)
     } else {
       ctx.fillStyle = BLOCK_COLOUR_1;//none-river/none-palace color
     }
+
     // Draw rectangle for the background
     let Xpos=STARTING_POINT_X+(iBlockCounter * BLOCK_SIZE);//x coord of top left corner of square
     let Ypos=STARTING_POINT_Y+(iRowCounter * BLOCK_SIZE);//y coord of top left corner of square
@@ -201,9 +200,12 @@ function moveHitBoxes(){//returns an array of objects with {x1,y1, x2,y2, xCent,
 //moving pieces
 var canvCoord;
 
+//remember since we're talking vertices, and not tiles, there will be one more row and column
+//than NUMBER_OF_ROWS/NUMBER_OF_COLS constants
   for(let row = 0; row<NUMBER_OF_ROWS+1; row++){
     for(let col=0; col<NUMBER_OF_COLS+1; col++){
 
+      // canvCoord= convertStateXY({x:col,y:row}, START_LOCOBJ, BLOCK_SIZE);
       canvCoord= utilObj.convertStateXY({x:col,y:row});
 
       moveHitBoxesArr.push({
@@ -214,8 +216,12 @@ var canvCoord;
         xCent: canvCoord.x,
         yCent: canvCoord.y,
       })
+      // ctx.strokeStyle = TEST_COLOUR;
+      // ctx.strokeRect(canvCoord.x-(BLOCK_SIZE/2), canvCoord.y-(BLOCK_SIZE/2), BLOCK_SIZE, BLOCK_SIZE); // uncomment to test if hitboxes are in the right
+      // locations!!! (just click a piece to show it after you uncomment)
     }
   }
+  // console.log(moveHitBoxesArr)
 }
 
 function convertToStateCoord(){
@@ -293,6 +299,10 @@ function board_click(ev)
 
     let clickedLocObj={x:clickedX, y:clickedY};
 
+    // debugging code
+    // ctx.fillStyle = "red";//use this and bottom 2 lines to debug hitbox problems (not selecting properly)
+    // ctx.fillRect(clickedX,clickedY,10,10);
+
     if(selectedKey === null) selectPiece(clickedLocObj)
     else processMove(clickedLocObj);
 }
@@ -309,79 +319,19 @@ function outlinePiece(pieceAtBlock){      // Draw outline
       ctx.strokeStyle = BLACK;
 }
 
-function selectPiece(clickedLocObj)// THIS IS ONLY USED FOR TESTING GAME.JS
+function selectPiece(clickedLocObj)
 {
-  //this is in lieu of making a legitimate test (now I think of it you really should make them.. it's just too time consuming)
-  // let game= new Game(state.boardState, state.chessState);
-  // console.log('Starting board: '); game.display();
-  //
-  // // console.log('elephant chessState for original board: ',game.chessState.red.ELE1)
-  // let nextGameState1= game.next_state_makeChildNode({ selectedPieceLookupVal: {key: 'ELE1', team: 'red' }, targetLoc: {x:4,y:7} });
-  // console.log('child1 board: '); nextGameState1.display();
-  // // console.log('elephant chessState for child1 board: ',nextGameState1.chessState.red.ELE1)
-  //
-  // let nextGameState2= game.next_state_makeChildNode({ selectedPieceLookupVal: {key: 'ELE1', team: 'red' }, targetLoc: {x:4,y:5} });
-  // console.log('child2 board: '); nextGameState2.display();
-  // // console.log('elephant chessState for child2 board: ',nextGameState2.chessState.red.ELE1)
-  //
-  // // console.log('elephant chessState for original board again: ',game.chessState.red.ELE1)
-  // console.log('original board again: '); game.display();//to show that changing child game states did not affect original board
-  //
-  // let nextGameState1_1= nextGameState1.next_state_makeChildNode({ selectedPieceLookupVal: {key: 'ELE1', team: 'black' }, targetLoc: {x:4,y:9} })
-  // console.log('child1-1 board: '); nextGameState1_1.display();//Shows that taking a general leads to the game ending, and one team declared winner
-  //
-  // console.log('game1 parent',nextGameState1.parent);
-  // console.log('game2 parent',nextGameState2.parent);
-  // console.log('original board children',game.children);
-
-  // game.populateLegalMovesforTeam(state.chessState.currentTurn);
-  // game.next_state({ selectedPieceLookupVal: {key: 'ELE1', team: 'red' }, targetLoc: {x:4,y:7} })
-  // game.display();
-  // // game.next_state({ selectedPieceLookupVal: {key: 'ELE1', team: 'red' }, targetLoc: {x:4,y:6} })//should throw an error
-  // // game.display();
-  // game.next_state({ selectedPieceLookupVal: {key: 'ELE1', team: 'red' }, targetLoc: {x:0,y:0} })
-  // game.display();
-  //
-  // game.next_state({ selectedPieceLookupVal: {key: 'ELE1', team: 'red' }, targetLoc: {x:4,y:0} })
-  // game.display();
-  // console.log(game.evaluate());
-
-// ------------- this is for testing the actual MCTS
-  let game= new Game(state.boardState, state.chessState);
-  let mcts= new MonteCarlo(game,5000,200);
-  let rootNode= new StatsNode(game);  rootNode.sims=100; rootNode.wins=60;
-  let child1= new StatsNode(game, rootNode, 1); child1.sims=40; child1.wins=23;
-  let child2= new StatsNode(game, rootNode, 1); child2.sims=4; child2.wins=2;
-  let child3= new StatsNode(game, rootNode, 1); child3.sims=56; child3.wins=25;
-  rootNode.setChildren([child1, child2, child3]);
-  let selectedNode= mcts.select(rootNode);  console.log('selectedNode ',selectedNode);
-  // child3.game.display();
-  mcts.expand(child3);
-  // console.log('child3 should now have children with game states representing red moves', child3);
-  // // child3.children[0].game.display();
-  // mcts.expand(child3.children[0]);
-  // console.log('child3 first child (where chariot goes to 0,8) should now its own children with game states represent black moves', child3.children[0])
-  // child3.children[0].children[0].game.display();
-  // mcts.expand(child3.children[0].children[0]);
-  // child3.children[0].children[0].children[0].game.display();
-  // mcts.expand(child3.children[0].children[0].children[0]);
-  // child3.children[0].children[0].children[0].children[0].game.display();
-  let result=mcts.run_simulation(child3);
-  console.log(result);
+  // var pieceAtBlock = utilObj.getPieceAtBlock(clickedLocObj, state.currentTurn);
+  var pieceAtBlock = utilObj.getPieceAtCanvXY(clickedLocObj, state.chessState.currentTurn);
+  if(pieceAtBlock){
+    selectedKey= pieceAtBlock.pieceKey// now you can get selectedPiece easily by doing state[state.currentTurn][selectedKey]
+    outlinePiece(pieceAtBlock);
+    showLegalMoves(pieceAtBlock);
+    }
 }
 
-// function selectPiece(clickedLocObj)    //REINSTATE THIS BLOCK OF CODE AFTER TESTING YOUR GAME.JS
-// {
-//
-//   var pieceAtBlock = utilObj.getPieceAtCanvXY(clickedLocObj, state.chessState.currentTurn);
-//   if(pieceAtBlock){
-//     selectedKey= pieceAtBlock.pieceKey;
-//     outlinePiece(pieceAtBlock);
-//     showLegalMoves(pieceAtBlock);
-//     }
-// }
-
 function showLegalMoves(pieceAtBlock){//****
+  //you need to USE the vlaues from get initial, and then draw them out
   let arrMoves= legalMoves.get(pieceAtBlock);
   let initialLegalMoves= arrMoves.legalMoves;//THIS NEEDS TO EVENTUALLY BE CHANGED TO RETURN THE INTERSECTION OF SHOW INITIALLEGAL MOVES AND CHECKMATE THINGY
   let pathMoves= arrMoves.pathMoves;
@@ -389,6 +339,7 @@ function showLegalMoves(pieceAtBlock){//****
   console.log('pathMoves: ', pathMoves);
   testDrawSquares(pathMoves, BLOCK_SIZE/2/2/2, PATH_COLOUR);
   testDrawSquares(initialLegalMoves, BLOCK_SIZE/2, MOVE_COLOUR);
+
 }
 
 function processMove(clickedLocObj)
@@ -398,10 +349,11 @@ function processMove(clickedLocObj)
   let stateCoord= utilObj.convertCanvXY({x:targetCoord.x,y:targetCoord.y});
 
   let targetResult=processPieceAtTarget(clickedLocObj);
+  // console.log('targetResult is ',targetResult)
   if(targetResult===true) movePiece(selectedPiece,stateCoord);
   else if(targetResult===false) return;
   else {
-    deactivatePiece(targetResult);
+    deactivatePiece(targetResult);//remember this has key and object.. not just the piece object itself.. basically like pieceTeamandKey
     movePiece(selectedPiece,stateCoord);
   }
   selectedKey=null;
@@ -414,6 +366,9 @@ function reDraw(){
 }
 
 function movePiece(selectedPiece,newStateCoord){
+  // for debug
+  // console.log('old coord: ',selectedPiece.x,selectedPiece.y)
+  // console.log('new coord input: ',newStateCoord.x,newStateCoord.y)
   let newPiece=Object.assign({},selectedPiece);
   newPiece.x=newStateCoord.x;
   newPiece.y=newStateCoord.y;
@@ -451,6 +406,7 @@ function processPieceAtTarget(clickedLocObj)//either returns true, (can move to 
 
 function changeTurn(){
   let nextTurn= state.chessState.currentTurn === 'red' ? 'black': 'red';
+  // console.log('next turn is ', nextTurn);
   let socketEmit= socketEmitCreator(UPDATE_TURN, nextTurn, 'Updating server store to change turn');
   socketEmit();
 }
