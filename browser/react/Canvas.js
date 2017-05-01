@@ -2,32 +2,24 @@
 'use strict';
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { draw, mctsGetBestMove, mctsMove } from '../js/chess_board';//runAI and machineMove really should be moved elsewhere.. .but for now im leaving them there
-import { store, activate_AI, deactivate_AI, action_AI_next_move } from './store';//This is still needed because you need a custom listener (actually ask about this)
+import { draw } from '../js/chess_board';//runAI and machineMove really should be moved elsewhere.. .but for now im leaving them there
+import { store } from './store';//This is still needed because you need a custom listener (actually ask about this)
 import { socketConnectCreator, socketDisconnectCreator, addSocketListenerCreator, tempUpdStoreListener, tempUpdPlayersListener, socketEmitCreator, update_currPlayer_AC } from './socket';
-import { UPDATE_CHESS_STORE, NEW_PLAYER, UPDATE_PLAYERS_STORE } from '../js/constants';
+import { UPDATE_CHESS_STORE, NEW_PLAYER, UPDATE_PLAYERS_STORE, RESET_SERVER_REQ, RESTART_GAME_REQ, REQUEST_UPDATE_FROM_SERVER } from '../js/constants';
 import { connect } from 'react-redux';
+import AI_box from './AI_box';
 
 class Canvas extends React.Component {
   constructor(props){
     super(props);
     console.log(props);
-    this.state=Object.assign({},props.storeState,{
+    this.state={
       canvas: '',
-    })
+      westernPieces: false,
+    }
+
     this.captureCanvasEl = this.captureCanvasEl.bind(this);
-    this.activateAI= this.activateAI.bind(this);
-    this.deactivateAI= this.deactivateAI.bind(this);
-  }
-
-  deactivateAI(){
-    this.props.dispatchDeactivateAI();
-  }
-
-  activateAI(){
-    this.props.dispatchActivateAI();
-    // this.props.dispatchAInextMove();
-    mctsMove(mctsGetBestMove());
+    this.toggleWesternPieces = this.toggleWesternPieces.bind(this);
   }
 
   captureCanvasEl(canvasEl){//Note, this runs BEFORE componentDidMount!!! (during the first rendering!)
@@ -36,11 +28,26 @@ class Canvas extends React.Component {
     )
   }
 
-  componentDidMount () {
+  toggleWesternPieces (){
+    let westernPieces= this.state.westernPieces;
+    this.setState({westernPieces: !westernPieces});
+    draw(this.state.canvas, !westernPieces)
+  }
 
+  resetGame(){
+    // socketEmitCreator(RESET_SERVER_REQ, 'Making request to server to reset store!')();
+    socketEmitCreator(RESTART_GAME_REQ, 'Making request to server to reset game!')();
+    setTimeout(()=>{
+      let emitRequestForUp= socketEmitCreator(REQUEST_UPDATE_FROM_SERVER, null, 'Requesting server for update');
+      emitRequestForUp();
+          }
+      , 100);
+  }
+
+  componentDidMount () {
     this.props.socketConnect()
 
-    socketEmitCreator(NEW_PLAYER, prompt("Please enter your name!"), "Updating server store with new player name!")()
+    socketEmitCreator(NEW_PLAYER, prompt("Please enter your name!"), "Updating server store with new player name!")();
 
     let addSocketListener1= addSocketListenerCreator(UPDATE_CHESS_STORE, tempUpdStoreListener);//ASK HAL IF THERE IS A BETTER WAY TO DO THIS!!!
     addSocketListener1();//CHANGE THIS UP SO NO NEED TO HAVE tempUpdStoreListener.. an anon function will do  ..(update: not so sure anymore.. but try it out)
@@ -52,9 +59,8 @@ class Canvas extends React.Component {
       //so you still have to do your own subscribe
       console.log('local store changed... (re)drawing !!');
       console.log('this.storeState changed: to ', this.props.storeState)
-      draw(this.state.canvas);
+      draw(this.state.canvas, false);
     })
-
   }
 
   componentWillUnmount(){
@@ -67,7 +73,6 @@ class Canvas extends React.Component {
     let team=this.props.storeState.currentPlayerState.team;
     let currentTurn=this.props.storeState.chessState.currentTurn;
     let playersState=this.props.storeState.playersState;
-    let aiStatus= this.props.storeState.aiState.active;
 
     return(
       <div>
@@ -77,7 +82,10 @@ class Canvas extends React.Component {
         <h2 className='center'>Current Turn: {currentTurn} </h2>
 
         <div className='inline-block'>
-        { !aiStatus ? <button onClick={ this.activateAI }>Let AI take Over!</button> : <button onClick={ this.deactivateAI }>Turn off AI!</button> }
+          { <button onClick={ this.resetGame }> Reset Game </button> }
+          { this.state.westernPieces ? <button onClick={ this.toggleWesternPieces }>Chinese Pieces</button> : <button onClick={ this.toggleWesternPieces }>Western Pieces</button> }
+          <p></p>
+          <AI_box />
           <h3 style={{color: 'grey'}}> Players/Spectators</h3>
           {playersState.map(playerObj=>{
             if(playerObj.team==='red') return(<h4 style={{color: playerObj.team}}>Red Player: {playerObj.name}</h4>)
@@ -104,15 +112,6 @@ const mapState = (state) => ({
 
 const mapDispatch = (dispatch) => (
     {
-      dispatchAInextMove: function(moveObj){
-        dispatch(action_AI_next_move(moveObj));
-      },
-      dispatchActivateAI: function(){
-        dispatch(activate_AI());
-      },
-      dispatchDeactivateAI: function(){
-        dispatch(deactivate_AI());
-      },
       socketConnect: function(){
         dispatch(socketConnectCreator());
       },

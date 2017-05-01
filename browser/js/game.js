@@ -56,6 +56,26 @@ Game.prototype.display= function(){//a quick and easy way to display the board o
 //   this.chessState.selectedKey=piece.key;
 // }
 
+
+
+Game.prototype.getLegalMovesforPiece= function(key){
+  let legalMoves= new LegalMoves({chessState: this.chessState, boardState: this.boardState});
+  let arrToRet=[];
+
+  // console.log('should make moves for ', key)
+  let currentPiece= this.chessState[this.chessState.currentTurn][key];
+  if(currentPiece.status){//YOU FORGOT TO INCLUDE THIS SO THE AI WAS TRYING TO MOVE DEAD PIECES (AND KILLING ENEMY PIECES WITH THEM LOL)
+    // console.log('hereee')
+    let allMoveObjsforPiece= legalMoves.get(currentPiece).legalMoves
+    .map(locObj=>{
+      // console.log('hereee')
+      return this.createMove(currentPiece,locObj)
+    })
+    arrToRet= arrToRet.concat(allMoveObjsforPiece)
+  }
+  return arrToRet;
+}
+
 Game.prototype.populateLegalMoves= function(){
   // console.log('populating move for ',this.chessState.currentTurn)
   this.populateLegalMovesforTeam(this.chessState.currentTurn);

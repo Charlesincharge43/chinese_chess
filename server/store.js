@@ -28,6 +28,16 @@ const remove_Player_AC = (socketID)=>{//playerObj looks something like: {socketI
 	return {type: REMOVE_PLAYER, socketID: socketID};
 }
 
+const RESET_SERVER_STORE= 'RESET_SERVER_STORE';
+const reset_server_AC = ()=>{
+	return {type: RESET_SERVER_STORE };
+}
+
+const RESTART_GAME_REQ= 'RESTART_GAME_REQ';
+const restart_game_AC = ()=>{
+	return {type: RESTART_GAME_REQ}
+}
+
 const CHANGE_CH_STATE_EVERYTHING='CHANGE_CH_STATE_EVERYTHING';
 
 
@@ -355,10 +365,12 @@ const chessStateReducer = function (prevState = initialChessState, action){
 			newState[team][key]=pieceChangeObj;
 			return newState;
 
-
 		case CHANGE_CH_TURN:
 			newState.currentTurn= action.currentTurn;
 			return newState;
+
+		case RESTART_GAME_REQ:
+			return initialChessState;
 
 		default:
 			return prevState;
@@ -402,15 +414,27 @@ let reducers=combineReducers({//this is how the entire store.getState() object w
   playersState: playersStateReducer,
 });
 
+const rootReducer = (state, action) => {//THIS IS THE BEST WAY TO RESET YOUR STATE/REDUX STORE!  See here: https://stackoverflow.com/questions/35622588/how-to-reset-the-state-of-a-redux-store/35641992#35641992
+
+  if (action.type === RESET_SERVER_STORE ) {
+		console.log('Resetting the store!')
+    state = undefined;
+  }
+  return reducers(state, action)
+}
+
 // const store = createStore(reducers,applyMiddleware(createLogger(),thunkMiddleware));
-const store = createStore(reducers,applyMiddleware(thunkMiddleware));//createLogger() unfortunately is too overwhelming in server console :(
+const store = createStore(rootReducer,applyMiddleware(thunkMiddleware));//createLogger() unfortunately is too overwhelming in server console :(
 
 module.exports= {
   chessStateReducer,
+	rootReducer,
   store,
   change_CH_State_AC,
   change_CH_Turn_AC,
 	change_Player_AC,
 	add_Player_AC,
 	remove_Player_AC,
+	reset_server_AC,
+	restart_game_AC,
 }

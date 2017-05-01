@@ -101,7 +101,7 @@ export const boardStateReducer = function (prevState = initialBoard, action){
 	let newState= deepCloneBoardState(initialBoard);
 	// console.log(newState)
 	// console.log('action.board ', action.board)
-	
+
 	//DELETE the below if things are working fine
 	// let newState=initialBoard.slice(0);//copy outer array
 	// for(let yArr of newState){

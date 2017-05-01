@@ -48,8 +48,12 @@ var moveHitBoxesArr=[];//this will populated by moveHitBoxes() in draw()
 var canvasVar;
 var pieces;
 var ctx;
+var westernPieces;
 
-export const draw = function(canvas)
+var animLoop;
+var requestAnimationFrame;
+
+export const draw = function(canvas, westernPiecesToggle)//westernPiecesToggle: if true, change pieces.src
 {
   canvasVar= canvas;//YES VERY HACKY WAY OF DOING THIS... WHEN I CHANGE EVERYTHING TO BE METHODS OF AN OBJECT
   //I'LL CHANGE IT BUT FOR NOW I JUST WANT THINGS WORKING
@@ -91,8 +95,10 @@ export const draw = function(canvas)
         // Draw pieces
         pieces = new Image();// Draw pieces ***** I don't get this part at all :( // I kinda get it now
         pieces.onload = drawPieces;
-        // pieces.src = '/xiangqi-pieces-sprites.png';//dimensions: width 2100, height, 600
-        pieces.src = '/xiangqi-pieces-sprites-western.png';
+        pieces.src= westernPiecesToggle ? '/xiangqi-pieces-sprites-western.png' : '/xiangqi-pieces-sprites.png';
+        westernPieces= westernPiecesToggle//This is needed to redraw (to "unoutline when deselect")
+
+
 
         //ONLY add click event listeners if the player's team matches the current turn team
         if(playerTeam=== state.chessState.currentTurn){
@@ -103,6 +109,55 @@ export const draw = function(canvas)
           // console.log('turn changed, so removing click handlers for team ', playerTeam)
           canvas.removeEventListener('click', board_click, false);
         }
+
+
+//----- testing
+//doesnt work :(
+
+
+// requestAnimationFrame = window.requestAnimationFrame ||
+//                             window.mozRequestAnimationFrame ||
+//                             window.webkitRequestAnimationFrame ||
+//                             window.msRequestAnimationFrame;
+//
+//                             var angle = 0;
+//
+              function drawCircle(radius) {
+                console.log('drawing with new radius ', radius)
+                ctx.clearRect(0, 0, 15, 15);
+                //
+                // // color in the background
+                // ctx.fillStyle = "#EEEEEE";
+                // ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+                // draw the circle
+                ctx.beginPath();
+
+                // var radius = 25 + 150 * Math.abs(Math.cos(30));
+                ctx.arc(225, 225, radius, 0, Math.PI * 2, false);
+                ctx.closePath();
+
+                // color in the circle
+                ctx.fillStyle = "#006699";
+                ctx.fill();
+
+                // requestAnimationFrame(drawCircle);
+            }
+
+    // ctx.beginPath();
+    //
+    // var radius = 175;
+    // ctx.arc(225, 225, radius, 0, Math.PI * 2, false);
+    // ctx.closePath();
+    // var radius = 175;
+    // ctx.arc(225, 225, radius, 0, Math.PI * 2, false);
+    // ctx.closePath();
+    // ctx.fillStyle = "#006699";
+    // ctx.fill();
+
+//----- testing
+
+
     }
     else
     {
@@ -155,7 +210,8 @@ function drawPalaceX(){
   drawLine(start4pos,end4pos)
 }
 
-function drawLine(start,end){
+function drawLine(start,end,color){
+  ctx.strokeStyle= color;
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(...start);
@@ -219,10 +275,6 @@ var canvCoord;
       })
     }
   }
-}
-
-function convertToStateCoord(){
-
 }
 
 function drawPieces()
@@ -300,17 +352,43 @@ function board_click(ev)
     else processMove(clickedLocObj);
 }
 
-function outlinePiece(pieceAtBlock){      // Draw outline
+function outlinePiece(pieceAtBlock){// Draw outline
   console.log('here')
-  // var pieceCanvCoord = convertStateXY({x:pieceAtBlock.x,y:pieceAtBlock.y}, START_LOCOBJ,BLOCK_SIZE)//center of coordinates of piece (in canvas, not in state)
-  var pieceCanvCoord = utilObj.convertStateXY({x:pieceAtBlock.x,y:pieceAtBlock.y})
-  // var topleftDrawCoord= topLeftCorner(pieceCanvCoord,PIECE_SIZE)
-  var topleftDrawCoord= utilObj.topLeftCorner(pieceCanvCoord)
-      ctx.lineWidth = SELECT_LINE_WIDTH;
-      ctx.strokeStyle = HIGHLIGHT_COLOUR;
-      ctx.strokeRect(topleftDrawCoord.x, topleftDrawCoord.y,
-          PIECE_SIZE, PIECE_SIZE);
+
+  // let outlineInterval = setInterval(doGameLoop, 35);
+  //
+  // var testvar= 0
+  //  function doGameLoop(){
+  //    testvar++;
+  //    drawCircle(testvar);
+  //  }
+
+  drawOutline()
+
+  // function drawOutline(){
+  //   // var pieceCanvCoord = convertStateXY({x:pieceAtBlock.x,y:pieceAtBlock.y}, START_LOCOBJ,BLOCK_SIZE)//center of coordinates of piece (in canvas, not in state)
+  //   var pieceCanvCoord = utilObj.convertStateXY({x:pieceAtBlock.x,y:pieceAtBlock.y})
+  //   // var topleftDrawCoord= topLeftCorner(pieceCanvCoord,PIECE_SIZE)
+  //   var topleftDrawCoord= utilObj.topLeftCorner(pieceCanvCoord)
+  //   ctx.lineWidth = SELECT_LINE_WIDTH;
+  //   ctx.strokeStyle = HIGHLIGHT_COLOUR;
+  //   ctx.strokeRect(topleftDrawCoord.x, topleftDrawCoord.y,
+  //     PIECE_SIZE, PIECE_SIZE);
+  //     ctx.strokeStyle = BLACK;
+  // }
+
+  function drawOutline(){
+    // var pieceCanvCoord = convertStateXY({x:pieceAtBlock.x,y:pieceAtBlock.y}, START_LOCOBJ,BLOCK_SIZE)//center of coordinates of piece (in canvas, not in state)
+    var pieceCanvCoord = utilObj.convertStateXY({x:pieceAtBlock.x,y:pieceAtBlock.y})
+    // var topleftDrawCoord= topLeftCorner(pieceCanvCoord,PIECE_SIZE)
+    var topleftDrawCoord= utilObj.topLeftCorner(pieceCanvCoord)
+    ctx.lineWidth = SELECT_LINE_WIDTH;
+    ctx.strokeStyle = HIGHLIGHT_COLOUR;
+    ctx.strokeRect(topleftDrawCoord.x, topleftDrawCoord.y,
+      PIECE_SIZE, PIECE_SIZE);
       ctx.strokeStyle = BLACK;
+  }
+
 }
 
 // function selectPiece(clickedLocObj)// THIS IS ONLY USED FOR TESTING GAME.JS
@@ -412,21 +490,26 @@ function showLegalMoves(pieceAtBlock){//****
   let arrMoves= legalMoves.get(pieceAtBlock);
   let initialLegalMoves= arrMoves.legalMoves;//THIS NEEDS TO EVENTUALLY BE CHANGED TO RETURN THE INTERSECTION OF SHOW INITIALLEGAL MOVES AND CHECKMATE THINGY
   let pathMoves= arrMoves.pathMoves;
-  console.log('initial moves: ',initialLegalMoves);
-  console.log('pathMoves: ', pathMoves);
+  // console.log('initial moves: ',initialLegalMoves);
+  // console.log('pathMoves: ', pathMoves);
   testDrawSquares(pathMoves, BLOCK_SIZE/2/2/2, PATH_COLOUR);
   testDrawSquares(initialLegalMoves, BLOCK_SIZE/2, MOVE_COLOUR);
 }
 
 function processMove(clickedLocObj)
 {
+
   let selectedPiece=state.chessState[state.chessState.currentTurn][selectedKey];
   let targetCoord=utilObj.snapToVertex(clickedLocObj);
   let stateCoord= utilObj.convertCanvXY({x:targetCoord.x,y:targetCoord.y});
 
   let targetResult=processPieceAtTarget(clickedLocObj);
   if(targetResult===true) movePiece(selectedPiece,stateCoord);
-  else if(targetResult===false) return;
+  else if(targetResult===false) {
+    selectedKey = null;
+    draw(canvasVar, westernPieces);
+    return;
+  }
   else {
     deactivatePiece(targetResult);
     movePiece(selectedPiece,stateCoord);
@@ -442,11 +525,12 @@ function reDraw(){
 
 export function mctsGetBestMove() {
   let game= new Game(state.boardState, state.chessState);
-  let mcts= new MonteCarlo(game,7000,25);
+  let mcts= new MonteCarlo(game,5000,25);
   return mcts.bestMove();
 }
 
 export function mctsMove(movePieceObj) {//movePieceObj-> { selectedPieceLookupVal: {...}, targetLoc: {x:... , y:... } }
+  // console.log('should be moving! ');
   let targetResult= utilObj.getPieceAtXY(movePieceObj.targetLoc);
   let selectedPiece= state.chessState[movePieceObj.selectedPieceLookupVal.team][movePieceObj.selectedPieceLookupVal.key];
   if(targetResult) deactivatePiece(targetResult);
@@ -455,6 +539,7 @@ export function mctsMove(movePieceObj) {//movePieceObj-> { selectedPieceLookupVa
 }
 
 function movePiece(selectedPiece,newStateCoord){
+    // console.log('should be movinnnnnnnnn')
   let newPiece=Object.assign({},selectedPiece);
   newPiece.x=newStateCoord.x;
   newPiece.y=newStateCoord.y;
@@ -499,5 +584,5 @@ function changeTurn(){
     let emitRequestForUp= socketEmitCreator(REQUEST_UPDATE_FROM_SERVER, null, 'Requesting server for update');
     emitRequestForUp();
         }
-    , 250);//this is my hacky solution for making the server
+    , 250);//this is my hacky solution for making the server send back just one response after changing pieces, and changing turns (which are multiple emitters to server.. initially i had a listener on server to send back changes everytime.. but that was too much)
 }
