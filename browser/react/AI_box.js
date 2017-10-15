@@ -5,7 +5,7 @@ import { connect } from 'react-redux';
 
 import { mctsGetBestMove, mctsMove } from '../js/chess_board';
 import { activate_AI, deactivate_AI, action_AI_next_move, set_AI_thinking_on, set_AI_thinking_off, store } from './store';
-
+import AI_Status from './AI_Status';
 
 
 
@@ -33,11 +33,11 @@ class AI_box extends React.Component {
 
   componentDidMount(){
     this.unsubscribe= store.subscribe(() => {
-      console.log('here')
-      console.log("is thinking? ", this.state.thinking)
-      console.log('AIs team ', this.props.currentPlayerState.team)
-      console.log("current turn ", this.props.chessState.currentTurn)
-      console.log('AI activated? ', this.state.active)
+      // console.log('here')
+      // console.log("is thinking? ", this.state.thinking)
+      // console.log('AIs team ', this.props.currentPlayerState.team)
+      // console.log("current turn ", this.props.chessState.currentTurn)
+      // console.log('AI activated? ', this.state.active)
       setTimeout(()=>{
         if(!this.state.thinking && this.props.currentPlayerState.team === this.props.chessState.currentTurn && this.state.active){
           this.setState({thinking: true})
@@ -53,18 +53,7 @@ class AI_box extends React.Component {
           , 250)
             }
         , 250);//this is my hacky solution for making the server
-      // console.log('here somethin')
-      // console.log(this.state)
-      // if(this.props.aiState.active){
-      //   // console.log('this.state.active ', this.state.active)
-      //   if(!this.state.thinking && this.props.chessState.currentTurn === this.props.currentPlayerState.team){
-      //     // console.log('this.state.thinking ', this.state.thinking);
-      //     // console.log('this.chessState.currentTurn ', this.chessState.currentTurn, 'currentPlayerstate.team', currentPlayerState)
-      //     this.setState({thinking: true})
-      //     mctsMove(mctsGetBestMove());
-      //     this.setState({thinking: false})
-      //   }
-      // }
+
     })
   }
 
@@ -74,7 +63,8 @@ class AI_box extends React.Component {
 
       <div>
           { !aiStatus ? <button onClick={ this.activateAI }>Let AI take Over!</button> : <button onClick={ this.deactivateAI }>Turn off AI!</button> }
-          <span> blahhhh  </span>
+        <p></p>
+        <AI_Status />
       </div>
 
     )

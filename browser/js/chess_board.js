@@ -1,8 +1,8 @@
-import { CONNECT, UPDATE_PIECES, UPDATE_TURN, NEW_PLAYER, REQUEST_UPDATE_FROM_SERVER } from './constants'; //remember you can't import or export client side... need node
+import { CONNECT, UPDATE_PIECES, UPDATE_TURN, NEW_PLAYER, REQUEST_UPDATE_FROM_SERVER, UPDATE_OPP_AI_STAT } from './constants'; //remember you can't import or export client side... need node
 // import initialState from './defaultState'; //NO LONGER USING THIS
 import {store, change_CH_State_AC, change_CH_Key_AC, change_CH_Turn_AC, change_CH_State_Everything_AC, chessStateReducer} from '../react/store';
 import { soldierLegalMoves } from './legalMoves';
-import { socketEmitCreator } from '../react/socket';
+import { socketEmitCreator, set_oppAI_wait } from '../react/socket';
 import { UtilObj, getPieceAtCanvXY, snapToVertex, convertStateXY, topLeftCorner } from './utils';
 import LegalMoves from './legalMoves'
 import { Game } from './Game'
@@ -21,7 +21,8 @@ var START_LOCOBJ= {x:STARTING_POINT_X,y:STARTING_POINT_Y}
 var IMAGE_SIZE = 300;//size of image blocks on the original image file (for drawImage..)
 var PIECE_SIZE = 68;//size for the image blocks in the image file to scale down to for actual display
 var SELECT_LINE_WIDTH = 3;
-var HIGHLIGHT_COLOUR = '#FF0000';
+var HIGHLIGHT_COLOUR = '#33cc00';
+var HIGHLIGHT_COLOUR2 = '#b3ff99';
 var TEST_COLOUR = '#D2FF94';
 var MOVE_COLOUR = '#0080ff';
 var PATH_COLOUR = '#99ccff';
@@ -53,6 +54,9 @@ var westernPieces;
 var animLoop;
 var requestAnimationFrame;
 
+var outlineIntervalid;
+var outlineIntervalid2;
+
 export const draw = function(canvas, westernPiecesToggle)//westernPiecesToggle: if true, change pieces.src
 {
   canvasVar= canvas;//YES VERY HACKY WAY OF DOING THIS... WHEN I CHANGE EVERYTHING TO BE METHODS OF AN OBJECT
@@ -64,6 +68,8 @@ export const draw = function(canvas, westernPiecesToggle)//westernPiecesToggle: 
     // Canvas supported?
     if(canvas.getContext)
     {
+      if(outlineIntervalid){ clearInterval(outlineIntervalid); clearInterval(outlineIntervalid2)}
+
         ctx = canvas.getContext('2d');// all this is doing is saying the canvas will be in 2d
         ctx.clearRect(0, 0, canvas.width, canvas.height);//putting this here temporarily, so no need to use redraw()
         //draw will now be invoked multiple times so yeah.. you need to reset by clearing the canvas and then redrawing
@@ -110,54 +116,6 @@ export const draw = function(canvas, westernPiecesToggle)//westernPiecesToggle: 
           canvas.removeEventListener('click', board_click, false);
         }
 
-
-//----- testing
-//doesnt work :(
-
-
-// requestAnimationFrame = window.requestAnimationFrame ||
-//                             window.mozRequestAnimationFrame ||
-//                             window.webkitRequestAnimationFrame ||
-//                             window.msRequestAnimationFrame;
-//
-//                             var angle = 0;
-//
-              function drawCircle(radius) {
-                console.log('drawing with new radius ', radius)
-                ctx.clearRect(0, 0, 15, 15);
-                //
-                // // color in the background
-                // ctx.fillStyle = "#EEEEEE";
-                // ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-
-                // draw the circle
-                ctx.beginPath();
-
-                // var radius = 25 + 150 * Math.abs(Math.cos(30));
-                ctx.arc(225, 225, radius, 0, Math.PI * 2, false);
-                ctx.closePath();
-
-                // color in the circle
-                ctx.fillStyle = "#006699";
-                ctx.fill();
-
-                // requestAnimationFrame(drawCircle);
-            }
-
-    // ctx.beginPath();
-    //
-    // var radius = 175;
-    // ctx.arc(225, 225, radius, 0, Math.PI * 2, false);
-    // ctx.closePath();
-    // var radius = 175;
-    // ctx.arc(225, 225, radius, 0, Math.PI * 2, false);
-    // ctx.closePath();
-    // ctx.fillStyle = "#006699";
-    // ctx.fill();
-
-//----- testing
-
-
     }
     else
     {
@@ -174,8 +132,16 @@ function loadStatefromStore(){
     let consoleBoard= new Game(state.boardState, state.chessState);
     let score= consoleBoard.evaluate();
     console.log('score is currently: ', score);
-    // console.log('asdfasdf', consoleBoard);
+    consoleBoard.checkWinner();
     consoleBoard.display();
+    state.chessState = consoleBoard.chessState
+    // really need to make this better.. too many soures of truth.. consider later just having the game
+    // state in the consoleBoard not clone the chessState (so it directly changes the chessState?)
+    // or whatever.. just can't have multiple chessStates n shiz
+
+    // this whole having a chess state and game (board) state is really confusing... and your AI is using
+    // the board state and changing it via game.next_state (in expand) but humans are not??  need to
+    // make this more elegant
   }
 }
 
@@ -353,40 +319,101 @@ function board_click(ev)
 }
 
 function outlinePiece(pieceAtBlock){// Draw outline
-  console.log('here')
-
-  // let outlineInterval = setInterval(doGameLoop, 35);
-  //
-  // var testvar= 0
-  //  function doGameLoop(){
-  //    testvar++;
-  //    drawCircle(testvar);
-  //  }
-
-  drawOutline()
-
-  // function drawOutline(){
-  //   // var pieceCanvCoord = convertStateXY({x:pieceAtBlock.x,y:pieceAtBlock.y}, START_LOCOBJ,BLOCK_SIZE)//center of coordinates of piece (in canvas, not in state)
-  //   var pieceCanvCoord = utilObj.convertStateXY({x:pieceAtBlock.x,y:pieceAtBlock.y})
-  //   // var topleftDrawCoord= topLeftCorner(pieceCanvCoord,PIECE_SIZE)
-  //   var topleftDrawCoord= utilObj.topLeftCorner(pieceCanvCoord)
-  //   ctx.lineWidth = SELECT_LINE_WIDTH;
-  //   ctx.strokeStyle = HIGHLIGHT_COLOUR;
-  //   ctx.strokeRect(topleftDrawCoord.x, topleftDrawCoord.y,
-  //     PIECE_SIZE, PIECE_SIZE);
-  //     ctx.strokeStyle = BLACK;
-  // }
-
-  function drawOutline(){
-    // var pieceCanvCoord = convertStateXY({x:pieceAtBlock.x,y:pieceAtBlock.y}, START_LOCOBJ,BLOCK_SIZE)//center of coordinates of piece (in canvas, not in state)
     var pieceCanvCoord = utilObj.convertStateXY({x:pieceAtBlock.x,y:pieceAtBlock.y})
-    // var topleftDrawCoord= topLeftCorner(pieceCanvCoord,PIECE_SIZE)
-    var topleftDrawCoord= utilObj.topLeftCorner(pieceCanvCoord)
+    var topleftDrawCoord= utilObj.topLeftCorner(pieceCanvCoord);
+    var toprightDrawCoord= {x: topleftDrawCoord.x+PIECE_SIZE, y: topleftDrawCoord.y};
+    var botrightDrawCoord= {x: topleftDrawCoord.x+PIECE_SIZE, y: topleftDrawCoord.y+PIECE_SIZE};
+    var botleftDrawCoord= {x: topleftDrawCoord.x, y: topleftDrawCoord.y+PIECE_SIZE};
+
+    var drawingpoints= [topleftDrawCoord,toprightDrawCoord,botrightDrawCoord,botleftDrawCoord];
+    var leftToRightTemp=[];
+
+    let x= topleftDrawCoord.x;
+    let xdiv10= (toprightDrawCoord.x-topleftDrawCoord.x)/10;
+    while(x <= toprightDrawCoord.x){
+      leftToRightTemp.push(x);
+      x+=xdiv10;
+    }
+
+    let leftToRight = leftToRightTemp.slice();
+    let rightToLeft= leftToRightTemp.reverse();
+    // console.log(leftToRight)
+    // console.log(rightToLeft)
+    var topToBottomTemp=[];
+    let y= toprightDrawCoord.y;
+    let ydiv10= (botrightDrawCoord.y-toprightDrawCoord.y)/10;
+    while(y <= botrightDrawCoord.y){
+      topToBottomTemp.push(y);
+      y+=ydiv10;
+    }
+    let topToBottom = topToBottomTemp.slice();
+    let bottomToTop = topToBottomTemp.reverse();
+
+    outlineIntervalid = setInterval(drawOutline, 35);
+
+    var startpoint= 0;
+    var el = 0;
+     function drawOutline(){
+       let drawCoord
+       if(startpoint % 4 === 0){
+         el++;
+         drawCoord= {x: leftToRight[el % 11], y: drawingpoints[startpoint % 4].y};
+         if(el % 11 === 0) startpoint++;
+       }
+       if(startpoint % 4 === 1){
+          el++;
+         drawCoord= {x: drawingpoints[startpoint % 4].x, y: topToBottom[el % 11] };
+         if(el % 11 === 0) startpoint++;
+       }
+       if(startpoint % 4 === 2){
+         drawCoord= {x: rightToLeft[el % 11], y: drawingpoints[startpoint % 4].y};
+          el++;
+         if(el % 11 === 0) startpoint++;
+       }
+       if(startpoint % 4 === 3){
+         drawCoord= {x: drawingpoints[startpoint % 4].x, y: bottomToTop[el % 11] };
+          el++;
+         if(el % 11 === 0) startpoint++;
+       }
+       drawPixel(drawCoord, HIGHLIGHT_COLOUR);
+     }
+
+     outlineIntervalid2 = setInterval(drawOutline2, 35);
+
+     var startpoint2= 2;
+     var el2 = 0;
+      function drawOutline2(){
+        let drawCoord
+        if(startpoint2 % 4 === 0){
+          el2++;
+          drawCoord= {x: leftToRight[el2 % 11], y: drawingpoints[startpoint2 % 4].y};
+          if(el2 % 11 === 0) startpoint2++;
+        }
+        if(startpoint2 % 4 === 1){
+           el2++;
+          drawCoord= {x: drawingpoints[startpoint2 % 4].x, y: topToBottom[el2 % 11] };
+          if(el2 % 11 === 0) startpoint2++;
+        }
+        if(startpoint2 % 4 === 2){
+          drawCoord= {x: rightToLeft[el2 % 11], y: drawingpoints[startpoint2 % 4].y};
+           el2++;
+          if(el2 % 11 === 0) startpoint2++;
+        }
+        if(startpoint2 % 4 === 3){
+          drawCoord= {x: drawingpoints[startpoint2 % 4].x, y: bottomToTop[el2 % 11] };
+           el2++;
+          if(el2 % 11 === 0) startpoint2++;
+        }
+        drawPixel(drawCoord, HIGHLIGHT_COLOUR2);
+      }
+
+
+  function drawPixel(drawCoord, color){
     ctx.lineWidth = SELECT_LINE_WIDTH;
-    ctx.strokeStyle = HIGHLIGHT_COLOUR;
-    ctx.strokeRect(topleftDrawCoord.x, topleftDrawCoord.y,
-      PIECE_SIZE, PIECE_SIZE);
-      ctx.strokeStyle = BLACK;
+    ctx.strokeStyle = color;
+    ctx.strokeRect(drawCoord.x, drawCoord.y,
+      1, 1);
+    ctx.strokeStyle = BLACK;
   }
 
 }
@@ -525,12 +552,13 @@ function reDraw(){
 
 export function mctsGetBestMove() {
   let game= new Game(state.boardState, state.chessState);
-  let mcts= new MonteCarlo(game,5000,25);
+  let mcts= new MonteCarlo(game,10000,25);
   return mcts.bestMove();
 }
 
 export function mctsMove(movePieceObj) {//movePieceObj-> { selectedPieceLookupVal: {...}, targetLoc: {x:... , y:... } }
   // console.log('should be moving! ');
+
   let targetResult= utilObj.getPieceAtXY(movePieceObj.targetLoc);
   let selectedPiece= state.chessState[movePieceObj.selectedPieceLookupVal.team][movePieceObj.selectedPieceLookupVal.key];
   if(targetResult) deactivatePiece(targetResult);

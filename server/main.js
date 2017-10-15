@@ -1,6 +1,6 @@
 'use strict';
 var constantsObj= require('../browser/js/constants');
-const { UPDATE_CHESS_STORE, UPDATE_PIECES, UPDATE_TURN, CHANGE_CH_STATE, CHANGE_CH_TURN, NEW_PLAYER, UPDATE_PLAYERS_STORE, REQUEST_UPDATE_FROM_SERVER, RESET_SERVER_REQ, RESTART_GAME_REQ } = require('../browser/js/constants');
+const { UPDATE_CHESS_STORE, UPDATE_PIECES, UPDATE_TURN, CHANGE_CH_STATE, CHANGE_CH_TURN, NEW_PLAYER, UPDATE_PLAYERS_STORE, REQUEST_UPDATE_FROM_SERVER, RESET_SERVER_REQ, RESTART_GAME_REQ, UPDATE_OPP_AI_STAT } = require('../browser/js/constants');
 const { change_CH_State_AC, change_CH_Turn_AC, change_Player_AC, add_Player_AC, remove_Player_AC, restart_game_AC } = require('./store');
 
 /* eslint-disable global-require */
@@ -109,6 +109,11 @@ io.on('connection', function (socket) {
   socket.on(RESTART_GAME_REQ, function(){
     console.log('received request to reset server store from client');
     store.dispatch(restart_game_AC());
+  })
+
+  socket.on(UPDATE_OPP_AI_STAT, function(actionObj){
+    console.log('broadcasting : ', actionObj);
+    socket.broadcast.emit(UPDATE_OPP_AI_STAT, actionObj);
   })
 
   socket.on('disconnect', function () {

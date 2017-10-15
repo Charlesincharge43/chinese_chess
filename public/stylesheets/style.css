@@ -21,3 +21,11 @@ a {
   display: inline-block;
   background-color: red;
 }
+
+.blink_me {
+  animation: blinker 1s linear infinite;
+}
+
+@keyframes blinker {
+  50% { opacity: 0; }
+}

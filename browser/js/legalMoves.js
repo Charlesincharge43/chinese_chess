@@ -19,6 +19,7 @@ LegalMoves.prototype.getFinal=function(selectedPiece){// IF YOU HAVE TIME... do 
 
 LegalMoves.prototype.get= function(piece){
   let arrMoves= {legalMoves:[], pathMoves:[]};
+  if (this.state.chessState.ended) return arrMoves
   //should look like { legalMoves: [{x:1,y:1},{x:1,y:2}] , pathMoves: {x:1,y:0}]  }
   //legalMoves are moves you can make.. .pathMoves are to visually demonstrate the path (for units like elephant and cavs that can be blocked)
   //legalMoves are used by the AI and humans, pathMoves are only used as visual markers to aid humans (and not used by AI)

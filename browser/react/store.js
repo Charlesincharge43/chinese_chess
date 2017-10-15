@@ -99,18 +99,6 @@ const initialBoard = [[{"team":"black","key":"CH1"},{"team":"black","key":"CAV1"
 export const boardStateReducer = function (prevState = initialBoard, action){
 
 	let newState= deepCloneBoardState(initialBoard);
-	// console.log(newState)
-	// console.log('action.board ', action.board)
-
-	//DELETE the below if things are working fine
-	// let newState=initialBoard.slice(0);//copy outer array
-	// for(let yArr of newState){
-	// 	yArr= yArr.slice(0);//copy inner array
-	// 	for(let lookupVal of yArr){
-	// 		lookupVal= Object.assign({},lookupVal);//copy objects inside the array
-	// 	}
-	// }
-
 	switch(action.type){
 		case CHANGE_BOARD:
 			newState= action.board;
@@ -188,10 +176,6 @@ const aiStateReducer = function(prevState = {active: false, thinking: false }, a
 			newState.active= false;
 			return newState;
 
-		// case AI_NEXT_MOVE:
-		// 	newState.nextMove=action.nextMove;
-		// 	return newState;
-
 		case AI_THINKING_ON:
 			newState.thinking=true;
 			return newState;
@@ -202,9 +186,48 @@ const aiStateReducer = function(prevState = {active: false, thinking: false }, a
 
 		default:
 			return prevState;
-
-
 	}
+}
+
+
+
+const OP_AI_MINIMAXAB = 'OP_AI_MINIMAXAB';
+export const set_oppAI_minimax= () =>{
+	return {type: OP_AI_MINIMAXAB}
+}
+
+const OP_AI_MCTS = 'OP_AI_MCTS';
+export const set_oppAI_mcts= () =>{
+	return {type: OP_AI_MCTS}
+}
+
+const OP_AI_WAITING = 'OP_AI_WAITING';
+export const set_oppAI_wait= () =>{
+	return {type: OP_AI_WAITING}
+}
+
+const oppAIDefault={status: 'No Opponent AI'};
+
+const opponentAIStatReducer = function(prevState = oppAIDefault, action){
+	let newState = Object.assign({},prevState);
+
+	switch(action.type){
+		case OP_AI_WAITING:
+			newState.status='Waiting';
+			return newState;
+
+		case OP_AI_MINIMAXAB:
+		newState.status='Thinking ...';
+		return newState;
+
+		case OP_AI_MCTS:
+		newState.status='Finalizing ...';
+		return newState;
+
+		default:
+		return prevState;
+	}
+
 }
 
 let reducers=combineReducers({
@@ -213,6 +236,7 @@ let reducers=combineReducers({
 	currentPlayerState: currentPlayerStateReducer,
 	boardState: boardStateReducer,//This and the aiState below are only things that do not get anything from server (board is recreated every time from chessState - when that changes)
 	aiState: aiStateReducer,//
+	opponentAIStat: opponentAIStatReducer,
 });
 
 export const store = createStore(reducers,applyMiddleware(createLogger(),thunkMiddleware));

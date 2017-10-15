@@ -5,7 +5,7 @@ import ReactDOM from 'react-dom';
 import { draw } from '../js/chess_board';//runAI and machineMove really should be moved elsewhere.. .but for now im leaving them there
 import { store } from './store';//This is still needed because you need a custom listener (actually ask about this)
 import { socketConnectCreator, socketDisconnectCreator, addSocketListenerCreator, tempUpdStoreListener, tempUpdPlayersListener, socketEmitCreator, update_currPlayer_AC } from './socket';
-import { UPDATE_CHESS_STORE, NEW_PLAYER, UPDATE_PLAYERS_STORE, RESET_SERVER_REQ, RESTART_GAME_REQ, REQUEST_UPDATE_FROM_SERVER } from '../js/constants';
+import { UPDATE_CHESS_STORE, NEW_PLAYER, UPDATE_PLAYERS_STORE, RESET_SERVER_REQ, RESTART_GAME_REQ, REQUEST_UPDATE_FROM_SERVER, UPDATE_OPP_AI_STAT } from '../js/constants';
 import { connect } from 'react-redux';
 import AI_box from './AI_box';
 
@@ -54,6 +54,13 @@ class Canvas extends React.Component {
 
     let addSocketListener2= addSocketListenerCreator(UPDATE_PLAYERS_STORE, tempUpdPlayersListener);
     addSocketListener2();
+
+    const dispatchOppAIStat= (actionObj)=>{
+      store.dispatch(actionObj);
+    }//(bind is not necesasry.. just keeping it here JUST in case)
+
+    let addSocketListener3= addSocketListenerCreator(UPDATE_OPP_AI_STAT, dispatchOppAIStat);
+    addSocketListener3();
 
     this.unsubscribe= store.subscribe(() => {//react redux generally takes care of store.subscribe, but in this case, you need a custom listener that draws!
       //so you still have to do your own subscribe
