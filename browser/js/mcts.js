@@ -36,16 +36,18 @@ MonteCarlo.prototype.bestMove= function (){
   mctsbroadcast();
 
   // ***** COMMENT BACK IN WHEN MINIMAX AB IS FIXED
-  // let startTime = Date.now();
-  // while ((Date.now() - startTime) < this.timePerTurn) {
-  //   this.runMonteCarlo(this.root);
-  // }
+  let startTime = Date.now();
+  while ((Date.now() - startTime) < this.timePerTurn) {
+    this.runMonteCarlo(this.root);
+  }
 
   // emit set_oppAI_wait   ... AI has done thinking already so right before it actually moves the piece, tell everyone its done thinking
   // let waitbroadcast= socketEmitCreator(UPDATE_OPP_AI_STAT, set_oppAI_wait(), 'Broadcasting mcts status');
   // waitbroadcast();
 
+  // ***** COMMENT BACK IN WHEN MINIMAX AB IS FIXED
   let bestMove=this.root.children.sort(function(a,b){return b.sims-a.sims})[0];
+  // let bestMove = this.root.children[0]
   console.log('next moves (see children): ',this.root)
   console.log('best move out of next moves: ', bestMove)
   console.log('total simulations run: ', this.root.sims)
@@ -107,50 +109,13 @@ MonteCarlo.prototype.selectiveExpand= function(statsNode, pieceKey, debug = fals
     return newstatsNode;
   })
   let a = statsNode.children.concat(newMoves)
-  // something is weirdly changing the order of the statsNode.children in the shallowMInimaxAB!!!
-  // The AI is acting funny, and I'm wondering if there are some immutability issues related to this
-  // symptom.
-  //
-  // As demonstration...  start the game, choose red, and move your red cannon to 4,5..
-  // then start the AI for black, and check the console.
-  //
-  // if you expand the a in the console.. after 'adding moves for  SOL5' ...
-  // you'll see the 0th element is CAN1 to 5,2
-  // and yet the 1st element (a[0]) will say black CH1 to 0,1...
-  // the 20th element for a is also CH1 to 0,2.. which should be the 2nd element (a[1])
-  // I have no idea what could be changing the order of the children, as there is no sorting going on
-  // in minimaxAB!!!
-  // I can't figre out what the problem is.. so the next step is to order all children by id (the actual
-  // order by which these new nodes are being created...) and then going through the algorithm step
-  // by step to find the bug.
-
-  // I'm committing this particular change however, just in case I fix the AI problem without fully solving this
-  // mystery.  If that's the case, LOOK INTO THIS!!! It's likely you have some kind of javascript misconception
-
-  if (debug){
-    console.log('-------adding moves for ', pieceKey)
-    console.log('original children ', statsNode.children)
-    console.log('statsNode.children.concat(newMoves) = ')
-    console.log(statsNode.children.concat(newMoves))
-    console.log('1st element for the concat is ', statsNode.children.concat(newMoves)[0])
-    console.log('a = ', a)
-    console.log('1st element for a is ', a[0])
-    // console.log('reassigning a to statsNode.children.concat(newMoves)')
-    // a = statsNode.children.concat(newMoves)
-    // console.log('new a = ', a)
-  }
-  statsNode.children= a;//YOUR PROBLEM IS YOU RETURNED statsNode.children, and not just the part you added... thus, you ended up adding multiple things multiple times! (because there was a nested for loop in alpha beta... just check it ou)
-  if (debug){
-    console.log('new children ', statsNode.children)
-    console.log('1st element for new children is ', statsNode.children[0])
-    console.log('-------')
-  }
+  statsNode.children= statsNode.children.concat(newMoves);//YOUR PROBLEM IS YOU RETURNED statsNode.children, and not just the part you added... thus, you ended up adding multiple things multiple times! (because there was a nested for loop in alpha beta... just check it ou)
   return newMoves;
 }
 
 
 
-MonteCarlo.prototype.shallowMinimaxAB= function(statsNode, α, β, maximizingPlayer, maxdepth=4, depth=0){
+MonteCarlo.prototype.shallowMinimaxAB= function(statsNode, α, β, maximizingPlayer, maxdepth=4, depth=0, thresh=0.025){
   statsNode.alphabetaOrig = {α, β}//delete later!
 
   let currentTeam= statsNode.game.chessState.currentTurn;
@@ -158,107 +123,61 @@ MonteCarlo.prototype.shallowMinimaxAB= function(statsNode, α, β, maximizingPla
   let gameStateScore=statsNode.game.evaluate();//can get rid of this and just put it in the base case (to optimize) once you fix the minimax bug
   statsNode.gameStateScore=JSON.stringify(gameStateScore);//can get rid of this later too
   //base case
-  if(depth===maxdepth || statsNode.game.chessState.ended) {
-    // console.log('got to maxdepth... ', maxdepth)
+  if(depth === maxdepth || statsNode.game.chessState.ended) {
     statsNode.minmaxEval= gameStateScore;
     statsNode.minmaxStr=`(final depth minmax) score: red ${gameStateScore.redScore}  black  ${gameStateScore.blackScore}`;
     evalVal= statsNode.minmaxEval.redScore;
     return evalVal;
   }
   //recursive case
-  else if(currentTeam===maximizingPlayer) {
-    evalVal = -100000000000;
-    // console.log('begin loop.. red') // delete later
+  else if(currentTeam === maximizingPlayer) {
+    evalVal = -Infinity;
     nested_loop1:
     for(let key in statsNode.game.chessState[currentTeam]){
-      // console.log(key) // delete later
-      let bool = false // delete later
-      if (depth === 0) bool = true // delete later
-      let childNodesforPiece= this.selectiveExpand(statsNode, key, bool); // take out bool later
+      let childNodesforPiece= this.selectiveExpand(statsNode, key);
 
       for(let childNode of childNodesforPiece){
-        // console.log(childNode.moveStr) // delete later
         evalVal = Math.max(evalVal, this.shallowMinimaxAB(childNode, α, β, maximizingPlayer, maxdepth, depth+1));
         α = Math.max(α, evalVal);
-        if(β <= α) {
-          // console.log('about to break');
-          // console.log('stats node is like dis: ', statsNode)
-          break nested_loop1;}
+        if (β + thresh < α ) {
+          break nested_loop1;
+        }
       }
-      // console.log('just checking')
     }
-    // console.log('end loop') // delete later
 
     statsNode.minmaxEval={redScore: evalVal, blackScore: 1-evalVal};
     statsNode.alphabeta = {α, β} // delete later!
     statsNode.minmaxStr=`score: red ${evalVal}  black  ${1-evalVal}`;//COMMENT THIS OUT WHEN YOU HAVE FIXED THE MINMAX BUG
-    // console.log('should be setting minmaxeval ', statsNode.minmaxEval);
-    // console.log('children to filter: ', statsNode.children, 'by ', evalVal);
 
-//-----------filtering block ----------
-  // statsNode.children.sort((a, b) => b.minmaxEval.redScore - a.minmaxEval.redScore)
-  //   if(depth===0){
-  //     statsNode.bestchildren= statsNode.children.filter(child=>{
-  //       child.pruned=false;
-  //       return child.minmaxEval.redScore.between(evalVal-.01,evalVal+.01);
-  //     })
-  //     // if(statsNode.children.length>3){
-  //     //   statsNode.children= statsNode.children.slice(0,3);
-  //     // }
-  //   }
-    // else if(depth ===1){
-    //   statsNode.children= statsNode.children.slice(0,5)
-    // }
-    // else {
-    //   statsNode.children= statsNode.children.slice(0,5)
-    // }
-
+    // statsNode.children.sort((a, b) => a.id - b.id)
+    statsNode.children = statsNode.children.filter(childNode => childNode.minmaxEval.redScore + thresh > evalVal);
+    statsNode.children.sort((a, b) => b.minmaxEval.blackScore - a.minmaxEval.blackScore);
+    statsNode.children = statsNode.children.slice(0, 5)
     return evalVal;
   }
 
   else {
-    evalVal = 100000000000;
-    // console.log('begin loop.. black') // delete later
+    evalVal = Infinity;
     nested_loop2:
     for(let key in statsNode.game.chessState[currentTeam]){
-      // console.log(key) // delete later
-      let bool = false // delete later
-      if (depth === 0) bool = true // delete later
-      let childNodesforPiece= this.selectiveExpand(statsNode, key, bool);// take out bool later
+      let childNodesforPiece= this.selectiveExpand(statsNode, key);
       for(let childNode of childNodesforPiece){
-        // console.log(childNode.moveStr) // delete later
         evalVal = Math.min(evalVal, this.shallowMinimaxAB(childNode, α, β, maximizingPlayer, maxdepth, depth+1));
         β = Math.min(β, evalVal);
-
-        if(β <= α) {
-          // console.log('about to break');
-          break nested_loop2;}
+        if (β + thresh < α ) {
+          break nested_loop2;
+        }
       }
     }
-    // console.log('end loop') // delete later
 
     statsNode.minmaxEval={redScore: evalVal, blackScore: 1-evalVal};
     statsNode.alphabeta = {α, β} // delete later!
     statsNode.minmaxStr=`score: red ${evalVal}  black  ${1-evalVal}`;//COMMENT THIS OUT WHEN YOU HAVE FIXED THE MINMAX BUG
 
-//-----------filtering block ----------
-  // statsNode.children.sort((a, b) => b.minmaxEval.blackScore - a.minmaxEval.blackScore)
-  //   if(depth===0){
-  //     statsNode.bestchildren= statsNode.children.filter(child=>{
-  //       child.pruned=false;
-  //       return child.minmaxEval.blackScore.between((1 - evalVal) - 0.01, (1 - evalVal) + 0.01);
-  //     })
-  //     // if(statsNode.children.length>3){
-  //     //   statsNode.children= statsNode.children.slice(0,3);
-  //     // }
-  //   }
-    // else if(depth ===1){
-    //   statsNode.children= statsNode.children.slice(0,5)
-    // }
-    // else {
-    //   statsNode.children= statsNode.children.slice(0,5)
-    // }
-
+    // statsNode.children.sort((a, b) => a.id - b.id)
+    statsNode.children = statsNode.children.filter(childNode => childNode.minmaxEval.redScore - thresh < evalVal);
+    statsNode.children.sort((a, b) => b.minmaxEval.redScore - a.minmaxEval.redScore);
+    statsNode.children = statsNode.children.slice(0, 5)
     return evalVal;
   }
 }
