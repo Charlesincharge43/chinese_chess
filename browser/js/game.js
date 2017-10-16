@@ -147,9 +147,11 @@ export class Game {//Because it'd be a nightmare to hook everything up and shiz,
     }
   }
 
-  next_state (movePieceObj){//movePieceObj-> { selectedPieceLookupVal: {...}, targetLoc: {x:... , y:... } }
+  next_state (movePieceObj, debug = false){//movePieceObj-> { selectedPieceLookupVal: {...}, targetLoc: {x:... , y:... } }
     //this is for playing the game without making a game tree (so no making new game tree nodes or anything.. just one game node whose values are modified at each move)
-    if(movePieceObj.selectedPieceLookupVal.team!== this.chessState.currentTurn) console.error(`Caution: team ${movePieceObj.selectedPieceLookupVal.team} is making a move when it should be team ${this.chessState.currentTurn}'s turn!`);
+    // set debug to be true if you want a team to be able to "move" an opposing team's pieces (won't be available to humans
+    // until the proper UI has been made... for now it's for testing bots and minimax)
+    if (movePieceObj.selectedPieceLookupVal.team !== this.chessState.currentTurn && !debug) console.error(`Caution: team ${movePieceObj.selectedPieceLookupVal.team} is making a move when it should be team ${this.chessState.currentTurn}'s turn!`);
     this.move(movePieceObj);
     this.changeTurn();
     this.checkWinner();

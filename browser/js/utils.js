@@ -51,6 +51,10 @@ export function populateBoard(chessState){
   return board;
 }
 
+// These are no longer in use... just use ramda deep clone.. way easier
+// (not to mention WAY faster...)
+// *** One of these days.. figure out why it is that your manually written one was so much slower
+
 export function deepCloneChessState(chessState){
 
   const newChessState = Object.assign({}, chessState);

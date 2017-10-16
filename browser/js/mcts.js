@@ -9,7 +9,8 @@ Number.prototype.between = function (min, max) {//Is there a better place to put
   return this > min && this < max;
 };
 
-export function MonteCarlo (gameInstance, timePerTurnMS, maxDepth=25, minMaxDepth=3){
+export function MonteCarlo (gameInstance, timePerTurnMS, maxDepth=25, minMaxDepth=4){
+  // currently, a minMaxDepth of 4 will allow the AI to be semi-competent.  But it takes over two minutes to calculate 
   this.gameInstance=gameInstance;
   this.timePerTurn=timePerTurnMS;//how many milliseconds to continue running simulations and building stats tree until it is forced to choose a move
   this.maxDepth=maxDepth;
@@ -27,8 +28,10 @@ MonteCarlo.prototype.bestMove= function (){
   let minmaxbroadcast= socketEmitCreator(UPDATE_OPP_AI_STAT, set_oppAI_minimax(), 'Broadcasting AI status');
   minmaxbroadcast();
 
-  let minmaxEval=this.shallowMinimaxAB(this.root, -100000000000, 100000000000, 'red', this.minMaxDepth);
-  // let minmaxEval=this.shallowMinimax(this.root);//delete this and use the line above once you got AB minimax working
+  let teststartTime = Date.now();
+  let minmaxEval=this.shallowMinimaxAB(this.root, -Infinity, Infinity, 'red', this.minMaxDepth);
+  // let minmaxEval=this.shallowMinimax(this.root, 0, this.minMaxDepth);//delete this and use the line above once you got AB minimax working
+  console.log('elapsed time is ', Date.now() - teststartTime)
   this.switch=true;
 
   // emit set_oppAI_mcts
@@ -103,11 +106,14 @@ MonteCarlo.prototype.selectiveExpand= function(statsNode, pieceKey, debug = fals
 
   let newMoves= potentialMoves.map(moveObjs=>{
     let gameCopy=new Game(statsNode.game.boardState, statsNode.game.chessState)//man you really should have just had it all in one state... to make this more "domain independent", fix it up so you just only need some very general inputs (like just state, and more general methods as well)
-    gameCopy.next_state(moveObjs);
+    gameCopy.next_state(moveObjs, true);
     let newstatsNode= new StatsNode(gameCopy, statsNode, statsNode.depth+1, moveObjs);
-    newstatsNode.id=hackysolution.idcount; hackysolution.idcount+=1;//get rid of this eventually.. you were using this to debug
+    newstatsNode.id=this.idcount; this.idcount+=1;//get rid of this eventually.. you were using this to debug
     return newstatsNode;
   })
+  if (!(this.idcount % 50000)) {
+    console.log('expanded ', this.idcount, ' nodes')
+  }
   let a = statsNode.children.concat(newMoves)
   statsNode.children= statsNode.children.concat(newMoves);//YOUR PROBLEM IS YOU RETURNED statsNode.children, and not just the part you added... thus, you ended up adding multiple things multiple times! (because there was a nested for loop in alpha beta... just check it ou)
   return newMoves;
@@ -115,17 +121,15 @@ MonteCarlo.prototype.selectiveExpand= function(statsNode, pieceKey, debug = fals
 
 
 
-MonteCarlo.prototype.shallowMinimaxAB= function(statsNode, α, β, maximizingPlayer, maxdepth=4, depth=0, thresh=0.025){
+MonteCarlo.prototype.shallowMinimaxAB= function(statsNode, α, β, maximizingPlayer, maxdepth=3, depth=0, thresh=0.025){
   statsNode.alphabetaOrig = {α, β}//delete later!
 
   let currentTeam= statsNode.game.chessState.currentTurn;
   let evalVal; let minmaxEval;
-  let gameStateScore=statsNode.game.evaluate();//can get rid of this and just put it in the base case (to optimize) once you fix the minimax bug
-  statsNode.gameStateScore=JSON.stringify(gameStateScore);//can get rid of this later too
   //base case
   if(depth === maxdepth || statsNode.game.chessState.ended) {
-    statsNode.minmaxEval= gameStateScore;
-    statsNode.minmaxStr=`(final depth minmax) score: red ${gameStateScore.redScore}  black  ${gameStateScore.blackScore}`;
+    statsNode.minmaxEval= statsNode.game.evaluate();
+    statsNode.minmaxStr=`(final depth minmax) score: red ${statsNode.minmaxEval.redScore}  black  ${statsNode.minmaxEval.blackScore}`;
     evalVal= statsNode.minmaxEval.redScore;
     return evalVal;
   }
@@ -151,7 +155,7 @@ MonteCarlo.prototype.shallowMinimaxAB= function(statsNode, α, β, maximizingPla
 
     // statsNode.children.sort((a, b) => a.id - b.id)
     statsNode.children = statsNode.children.filter(childNode => childNode.minmaxEval.redScore + thresh > evalVal);
-    statsNode.children.sort((a, b) => b.minmaxEval.blackScore - a.minmaxEval.blackScore);
+    statsNode.children.sort((a, b) => b.minmaxEval.redScore - a.minmaxEval.redScore);
     statsNode.children = statsNode.children.slice(0, 5)
     return evalVal;
   }
@@ -176,7 +180,7 @@ MonteCarlo.prototype.shallowMinimaxAB= function(statsNode, α, β, maximizingPla
 
     // statsNode.children.sort((a, b) => a.id - b.id)
     statsNode.children = statsNode.children.filter(childNode => childNode.minmaxEval.redScore - thresh < evalVal);
-    statsNode.children.sort((a, b) => b.minmaxEval.redScore - a.minmaxEval.redScore);
+    statsNode.children.sort((a, b) => b.minmaxEval.blackScore - a.minmaxEval.blackScore);
     statsNode.children = statsNode.children.slice(0, 5)
     return evalVal;
   }

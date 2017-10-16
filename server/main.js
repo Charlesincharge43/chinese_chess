@@ -12,7 +12,12 @@ var store = require('./store').store;//THIS IS A DIFFERENT STORE FROM THE BROWSE
 
 var app = require('./app');
 var server = require('http').createServer(app);
-var io = socketio(server);
+var io = socketio(server, { // see https://socket.io/docs/server-api/ ... this is in case you want AI to run for a long time
+  // without screwing up the client connection (client running a bot will be disconnected if the bot takes too long)
+  // below are engine.IO options
+  pingInterval: 400000,
+  pingTimeout: 200000,
+});
 
 // var createApplication = function () {
 //     var app = require('./app');

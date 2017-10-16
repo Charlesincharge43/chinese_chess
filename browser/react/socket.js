@@ -1,7 +1,7 @@
 import io from 'socket.io-client';
 import { change_chess_state_TC, change_Players_State_AC, set_currPlayer_socketID_AC, update_currPlayer_AC, store } from './store';
 import { CONNECT } from '../js/constants';
-import { populateBoard, deepCloneBoardState } from '../js/utils';
+import { populateBoard } from '../js/utils';
 import { change_board } from './store'
 
 let socket = {};//this can't be in store because ... can't serialize circular references (look into this later)
